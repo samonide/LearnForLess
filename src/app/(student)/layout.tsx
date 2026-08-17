@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, LogOut, User as UserIcon } from "lucide-react";
-import { logoutStudent } from "@/actions/student/access";
+import { logoutStudent } from "@/actions/student/auth";
 import { Button } from "@/components/ui/button";
 
 export default async function StudentLayout({
@@ -17,17 +17,17 @@ export default async function StudentLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/access");
+    redirect("/login");
   }
 
   // Fetch student profile
   const { data: profile } = (await supabase
     .from("profiles")
-    .select("display_name, email")
+    .select("display_name, email, username")
     .eq("id", user.id)
     .single()) as any;
 
-  const displayName = profile?.display_name || "Student";
+  const displayName = profile?.display_name || profile?.username || "Student";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-background flex flex-col">

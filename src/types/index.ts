@@ -217,6 +217,21 @@ export type TokenRedemptionResult =
   | { success: true; courseIds: string[] }
   | { success: false; error: TokenRedemptionError };
 
+export type RecoveryResult =
+  | { success: true }
+  | { success: false; error: RecoveryError };
+
+export type RecoveryError =
+  | "invalid_recovery_credentials"
+  | "recovery_token_expired"
+  | "recovery_token_used"
+  | "password_too_short"
+  | "unknown_error";
+
+export type GenerateRecoveryResult =
+  | { success: true; rawToken: string; hint: string }
+  | { success: false; error: string };
+
 export type TokenRedemptionError =
   | "invalid_token"
   | "token_disabled"

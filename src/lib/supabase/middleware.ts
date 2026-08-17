@@ -58,7 +58,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/course")
   ) {
     if (!user) {
-      return NextResponse.redirect(new URL("/access", request.url));
+      return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
@@ -76,9 +76,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   // ── Root redirect ──────────────────────────────────────────
-  // Keep the student access flow as the default public entry point.
+  // Redirect to student login as the default entry point.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/access", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return supabaseResponse;

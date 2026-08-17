@@ -1,42 +1,55 @@
 "use client";
 
-import { loginStudent } from "@/actions/student/auth";
+import { registerStudent } from "@/actions/student/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Loader2, LogIn } from "lucide-react";
+import { BookOpen, Loader2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-export default function StudentLoginPage() {
+export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmedUser = username.trim();
-    const trimmedPass = password.trim();
 
-    if (!trimmedUser || !trimmedPass) {
-      toast.error("Please enter username and password.");
+    if (!trimmedUser || !password || !confirm) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirm) {
+      toast.error("Passwords do not match.");
       return;
     }
 
     startTransition(async () => {
-      const result = await loginStudent(trimmedUser, trimmedPass);
+      const result = await registerStudent(trimmedUser, password);
 
       if (result.success) {
-        toast.success("Logged in successfully!");
-        router.push("/dashboard");
-        router.refresh();
+        toast.success("Account created! Please sign in.");
+        router.push("/login");
       } else {
         const message =
-          result.error === "invalid_credentials"
-            ? "Invalid username or password."
-            : "An unexpected error occurred. Please try again.";
+          result.error === "username_taken"
+            ? "That username is already taken."
+            : result.error === "username_invalid"
+              ? "Username must be 3-30 characters using letters, numbers, underscores, or dashes."
+              : result.error === "password_too_short"
+                ? "Password must be at least 8 characters."
+                : "An unexpected error occurred. Please try again.";
         toast.error(message);
       }
     });
@@ -61,13 +74,14 @@ export default function StudentLoginPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
-              <LogIn className="w-7 h-7 text-primary" />
+              <UserPlus className="w-7 h-7 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              Student Login
+              Create an Account
             </h1>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Sign in with your username and password.
+              Choose a username and password. You can redeem your access token
+              for courses after signing in.
             </p>
           </div>
 
@@ -84,13 +98,16 @@ export default function StudentLoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder="Choose a username"
                 className="h-10"
                 disabled={isPending}
                 autoComplete="username"
                 autoFocus
                 spellCheck={false}
               />
+              <p className="text-xs text-muted-foreground">
+                3-30 characters: letters, numbers, underscore, or dash.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -105,46 +122,57 @@ export default function StudentLoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder="At least 8 characters"
                 className="h-10"
                 disabled={isPending}
-                autoComplete="current-password"
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="confirm-input"
+                className="text-sm font-medium text-foreground"
+              >
+                Confirm Password
+              </label>
+              <Input
+                id="confirm-input"
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Re-enter your password"
+                className="h-10"
+                disabled={isPending}
+                autoComplete="new-password"
               />
             </div>
 
             <Button
               type="submit"
               className="w-full h-11"
-              disabled={isPending || !username.trim() || !password.trim()}
+              disabled={isPending || !username.trim() || !password || !confirm}
             >
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                "Sign In"
+                "Create Account"
               )}
             </Button>
           </form>
 
-          <div className="flex flex-col items-center gap-2 mt-6 text-sm">
-            <p className="text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="text-primary font-medium hover:underline"
-              >
-                Register here
-              </Link>
-            </p>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Already have an account?{" "}
             <Link
-              href="/recover"
-              className="text-muted-foreground hover:text-primary transition-colors"
+              href="/login"
+              className="text-primary font-medium hover:underline"
             >
-              Forgot your password?
+              Sign in
             </Link>
-          </div>
+          </p>
         </div>
       </main>
 

@@ -3,7 +3,8 @@ import { getStudentCourses } from "@/actions/student/courses";
 import { getNextUnfinishedLesson } from "@/actions/student/courses";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, GraduationCap, Calendar, ListChecks, PlayCircle } from "lucide-react";
+import TokenRedeemForm from "@/components/TokenRedeemForm";
+import { BookOpen, GraduationCap, Calendar, ListChecks, PlayCircle, KeyRound } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +53,12 @@ export default async function DashboardPage() {
               <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto" />
               <h3 className="font-semibold text-lg">No Courses Available</h3>
               <p className="text-muted-foreground text-sm">
-                No courses are currently assigned to your account. If you believe this is an error, please contact your administrator.
+                You don&apos;t have any courses yet. Enter an access token from
+                your instructor below to unlock your courses.
               </p>
+              <div className="pt-2 max-w-sm mx-auto">
+                <TokenRedeemForm />
+              </div>
             </div>
           </div>
         ) : (
@@ -141,6 +146,20 @@ export default async function DashboardPage() {
             )}
           </div>
         )}
+
+        {/* Token redemption — always visible */}
+        <div className="border border-border rounded-xl p-5 bg-card">
+          <div className="flex items-center gap-2 mb-3">
+            <KeyRound className="w-4 h-4 text-primary" />
+            <h3 className="font-semibold text-sm text-foreground">Redeem Another Token</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Enter a new access token to unlock additional courses.
+          </p>
+          <div className="max-w-sm">
+            <TokenRedeemForm />
+          </div>
+        </div>
       </div>
     </main>
   );

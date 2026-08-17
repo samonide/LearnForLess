@@ -50,6 +50,27 @@ export function buildStudentTokenLoginEmail(tokenId: string): string {
 }
 
 /**
+ * Derives the synthetic Supabase Auth email for a username.
+ * Must match the logic in auth.ts server actions.
+ */
+export function buildStudentLoginEmail(username: string): string {
+  const normalized = username.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "");
+  return `student-${normalized}@learnforless.local`;
+}
+
+/**
+ * Generates a cryptographically secure recovery token (12 chars, uppercase, no dashes).
+ * Easy to read aloud and communicate over the phone.
+ */
+export async function generateRecoveryTokenString(): Promise<string> {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const length = 12;
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array).map((b) => alphabet[b % alphabet.length]).join("");
+}
+
+/**
  * SHA-256 hash of a token string.
  * Returns hex-encoded hash.
  */
@@ -172,6 +193,17 @@ export function getTokenErrorMessage(error: string): string {
     token_assigned_to_another_student: "This token is assigned to another student account. Please contact your administrator.",
     token_max_uses_reached: "This access token has reached its maximum usage limit. Please contact your administrator.",
     no_courses_assigned: "No courses are currently assigned to this token. Please contact your administrator.",
+    unknown_error: "An unexpected error occurred. Please try again.",
+  };
+  return messages[error] ?? messages.unknown_error;
+}
+
+export function getRecoveryErrorMessage(error: string): string {
+  const messages: Record<string, string> = {
+    invalid_recovery_credentials: "Invalid recovery credentials. Please check your username and token.",
+    recovery_token_expired: "This recovery token has expired. Please contact your administrator for a new one.",
+    recovery_token_used: "This recovery token has already been used. Please contact your administrator for a new one.",
+    password_too_short: "Password must be at least 8 characters long.",
     unknown_error: "An unexpected error occurred. Please try again.",
   };
   return messages[error] ?? messages.unknown_error;

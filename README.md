@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LearnForLess
 
-## Getting Started
+Course CMS and student learning platform. Admin creates courses, modules, lessons and issues access tokens. Students redeem tokens to access published courses.
 
-First, run the development server:
+## Stack
+
+Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase, Radix UI / shadcn / Base UI, React Hook Form, Zod, Tiptap, dnd-kit, Lucide.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # fill Supabase keys
+npm run dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`npm run dev` — start dev server
+`npm run build` — production build
+`npm run lint` — lint
+`tsc --noEmit` — type check
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase
 
-## Learn More
+Migrations under `supabase/migrations/`. Apply in Supabase Dashboard -> SQL Editor in order:
 
-To learn more about Next.js, take a look at the following resources:
+- `001_schema.sql` — full schema (tables, indexes, RLS, storage bucket, functions `redeem_access_token`, `get_course_progress`, `grant_course_access_admin`)
+- `002_token_student_accounts.sql` — `access_tokens.bound_user_id`, `student_access` uniqueness, updated `redeem_access_token` enforcing single-owner binding
+- `003_username_auth.sql` — `profiles.username` (partial unique index) for student username/password login
+- `seed.sql` — optional sample data
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No Supabase CLI link configured. Apply manually via SQL Editor.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project docs
 
-## Deploy on Vercel
+- `CLAUDE.md` — project rules
+- `AGENTS.md` — agent instructions
+- `PROJECT_CONTEXT.md` — verified current state
+- `IMPLEMENTATION_PLAN.md` — roadmap
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Security
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Service-role key server-only. Token hashes never exposed to client. RLS enforced on all tables. Client checks not trusted for authz.
