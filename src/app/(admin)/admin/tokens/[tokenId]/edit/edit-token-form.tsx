@@ -134,7 +134,7 @@ export default function EditTokenForm({ token, courses }: EditTokenFormProps) {
               <div
                 key={course.id}
                 onClick={() => handleCourseToggle(course.id)}
-                className={`border rounded-lg p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${
+                className={`border rounded-lg p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-accent dark:hover:bg-accent transition-colors ${
                   checked ? "border-primary bg-primary/5" : "border-border bg-card"
                 }`}
               >

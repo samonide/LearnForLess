@@ -239,9 +239,13 @@ export async function getLessonContent(lessonId: string): Promise<{
       return { success: false, error: "Lesson not found or access denied." };
     }
 
-    const moduleData = lesson.modules as { course_id?: string; courses?: { status?: string }[] | null } | null;
+    const moduleData = lesson.modules as
+      | { course_id?: string; courses?: { status?: string } | { status?: string }[] | null }
+      | null;
     const courseId = moduleData?.course_id ?? "";
-    const courseStatus = Array.isArray(moduleData?.courses) ? moduleData.courses[0]?.status : null;
+    const courseStatus = Array.isArray(moduleData?.courses)
+      ? moduleData.courses[0]?.status
+      : (moduleData?.courses as { status?: string } | null | undefined)?.status ?? null;
 
     if (courseStatus !== "published") {
       return { success: false, error: "This course is not available." };

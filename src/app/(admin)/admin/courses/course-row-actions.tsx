@@ -34,7 +34,11 @@ export default function CourseRowActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  function handleStatusUpdate(status: "draft" | "published" | "archived") {
+  function handleNavigate(path: string) {
+  router.push(path);
+}
+
+function handleStatusUpdate(status: "draft" | "published" | "archived") {
     startTransition(async () => {
       const res = await setCourseStatus(courseId, status);
       if (res.success) {
@@ -74,11 +78,11 @@ export default function CourseRowActions({
         <MoreHorizontal className="w-4 h-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onSelect={() => router.push(`/admin/courses/${courseId}/builder`)}>
+        <DropdownMenuItem onClick={() => handleNavigate(`/admin/courses/${courseId}/builder`)}>
           <Settings className="w-4 h-4" />
           Manage Content
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => router.push(`/admin/courses/${courseId}/edit`)}>
+        <DropdownMenuItem onClick={() => handleNavigate(`/admin/courses/${courseId}/edit`)}>
           <Edit className="w-4 h-4" />
           Edit Metadata
         </DropdownMenuItem>

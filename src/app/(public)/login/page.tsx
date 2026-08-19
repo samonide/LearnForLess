@@ -3,7 +3,8 @@
 import { loginStudent } from "@/actions/student/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Loader2, LogIn } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -43,115 +44,84 @@ export default function StudentLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-between">
-      {/* Header */}
-      <header className="border-b border-border bg-card px-6 py-4 flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-lg tracking-tight">
-            LearnForLess
-          </span>
+    <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 md:p-10 space-y-6">
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Student Login
+        </h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Sign in with your username and password.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="username-input" className="text-xs font-semibold text-foreground">
+            Username
+          </Label>
+          <Input
+            id="username-input"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter your username"
+            className="h-10 bg-background"
+            disabled={isPending}
+            autoComplete="username"
+            autoFocus
+            spellCheck={false}
+          />
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
-              <LogIn className="w-7 h-7 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              Student Login
-            </h1>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Sign in with your username and password.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="username-input"
-                className="text-sm font-medium text-foreground"
-              >
-                Username
-              </label>
-              <Input
-                id="username-input"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="h-10"
-                disabled={isPending}
-                autoComplete="username"
-                autoFocus
-                spellCheck={false}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="password-input"
-                className="text-sm font-medium text-foreground"
-              >
-                Password
-              </label>
-              <Input
-                id="password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="h-10"
-                disabled={isPending}
-                autoComplete="current-password"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-11"
-              disabled={isPending || !username.trim() || !password.trim()}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
-          </form>
-
-          <div className="flex flex-col items-center gap-2 mt-6 text-sm">
-            <p className="text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="text-primary font-medium hover:underline"
-              >
-                Register here
-              </Link>
-            </p>
-            <Link
-              href="/recover"
-              className="text-muted-foreground hover:text-primary transition-colors"
-            >
-              Forgot your password?
-            </Link>
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password-input" className="text-xs font-semibold text-foreground">
+            Password
+          </Label>
+          <Input
+            id="password-input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            className="h-10 bg-background"
+            disabled={isPending}
+            autoComplete="current-password"
+          />
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} LearnForLess. All rights reserved.
-      </footer>
+        <Button
+          type="submit"
+          className="w-full h-10 font-semibold mt-2"
+          disabled={isPending || !username.trim() || !password.trim()}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
+        </Button>
+      </form>
+
+      <div className="flex flex-col items-center gap-2 pt-4 border-t border-border text-sm">
+        <p className="text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/register"
+            className="text-primary font-medium hover:underline"
+          >
+            Register here
+          </Link>
+        </p>
+        <Link
+          href="/recover"
+          className="text-muted-foreground hover:text-primary transition-colors"
+        >
+          Forgot your password?
+        </Link>
+      </div>
     </div>
   );
 }

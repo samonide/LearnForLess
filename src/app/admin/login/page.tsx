@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { BookOpen, ShieldAlert, Loader2 } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -57,33 +57,34 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-slate-900 bg-slate-950 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-card px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <BookOpen className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg tracking-tight text-white">LearnForLess</span>
+          <span className="font-semibold text-lg tracking-tight text-foreground">
+            LearnForLess
+          </span>
         </div>
       </header>
 
       {/* Login Box */}
       <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-xl space-y-6 shadow-xl">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-              <ShieldAlert className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Admin Portal</h1>
-            <p className="text-xs text-slate-400">
+        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 md:p-10 space-y-6">
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Admin Portal
+            </h1>
+            <p className="text-sm text-muted-foreground">
               Sign in to manage courses, tokens, and portal configurations
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div className="space-y-1.5">
-              <Label htmlFor="email-input" className="text-xs font-semibold text-slate-300">
+              <Label htmlFor="email-input" className="text-xs font-semibold text-foreground">
                 Email Address
               </Label>
               <Input
@@ -92,7 +93,7 @@ export default function AdminLoginPage() {
                 placeholder="admin@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-slate-950 border-slate-800 focus-visible:ring-primary focus-visible:border-primary text-slate-100 h-10"
+                className="h-10 bg-background"
                 disabled={isPending}
                 required
                 autoComplete="email"
@@ -100,7 +101,7 @@ export default function AdminLoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password-input" className="text-xs font-semibold text-slate-300">
+              <Label htmlFor="password-input" className="text-xs font-semibold text-foreground">
                 Password
               </Label>
               <Input
@@ -109,7 +110,7 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-950 border-slate-800 focus-visible:ring-primary focus-visible:border-primary text-slate-100 h-10"
+                className="h-10 bg-background"
                 disabled={isPending}
                 required
                 autoComplete="current-password"
@@ -118,7 +119,7 @@ export default function AdminLoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-10 font-bold bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
+              className="w-full h-10 font-semibold mt-2"
               disabled={isPending}
             >
               {isPending ? (
@@ -135,7 +136,7 @@ export default function AdminLoginPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 px-6 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-border bg-card px-6 py-4 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} LearnForLess. All rights reserved.
       </footer>
     </div>

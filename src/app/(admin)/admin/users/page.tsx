@@ -1,6 +1,5 @@
 import { getUsers } from "@/actions/admin/users";
 import { createAdminClient } from "@/lib/supabase/server";
-import { Users, GraduationCap } from "lucide-react";
 import UsersList from "./users-list";
 
 export const dynamic = "force-dynamic";
@@ -40,14 +39,13 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-border pb-5">
+      <div>
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Users className="w-8 h-8 text-primary" />
-            User Directory
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Users
           </h1>
           <p className="text-muted-foreground">
-            Review registered students, view their last seen timestamps, and manually grant or revoke specific course memberships.
+            Review registered students, view last-seen timestamps, and grant or revoke course memberships.
           </p>
         </div>
       </div>

@@ -274,10 +274,13 @@ export type CreateLessonInput = {
   is_preview?: boolean;
 };
 
-export type UpdateLessonInput = Partial<CreateLessonInput> & {
-  id: string;
+type LessonContentUpdate = {
+  content?: string | null;
   storage_path?: string | null;
 };
+
+export type UpdateLessonInput = Omit<Partial<CreateLessonInput>, "content"> &
+  LessonContentUpdate & { id: string };
 
 export type GenerateTokenInput = {
   name: string;

@@ -1,0 +1,14 @@
+{
+  "id": "B",
+  "label": "B: Magazine Grid",
+  "name": "Magazine Grid",
+  "notes": "",
+  "dials": {
+    "variance": 7,
+    "motion": 4,
+    "density": 4
+  },
+  "adjustments": "",
+  "source": "click",
+  "receivedAt": "2026-08-18T21:18:10.328Z"
+}

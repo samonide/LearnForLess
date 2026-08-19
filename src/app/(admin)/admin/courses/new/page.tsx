@@ -1,6 +1,6 @@
 "use client";
 
-import { createCourse } from "@/actions/admin/courses";
+import { createCourse, uploadCourseThumbnail } from "@/actions/admin/courses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { generateSlug } from "@/lib/utils";
-import { ArrowLeft, BookOpen, Loader2 } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 
 export default function NewCoursePage() {
@@ -25,8 +25,16 @@ export default function NewCoursePage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft");
+
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    };
+  }, [thumbnailPreview]);
 
   // Auto generate slug when title changes, unless manually modified
   const [manualSlug, setManualSlug] = useState(false);
@@ -43,6 +51,25 @@ export default function NewCoursePage() {
     setManualSlug(true);
   }
 
+  function handleThumbnailChange(file: File | null) {
+    // Revoke previous object URL to avoid leaks
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    setThumbnailFile(file);
+    setThumbnailPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function handleThumbnailUpload(courseId: string) {
+    if (!thumbnailFile) return;
+    const res = await uploadCourseThumbnail(courseId, thumbnailFile);
+    if (!res.success) {
+      toast.error(`Course created, but thumbnail upload failed: ${res.error}`);
+      router.push(`/admin/courses/${courseId}/builder`);
+      return;
+    }
+    toast.success("Course created with cover image uploaded successfully!");
+    router.push(`/admin/courses/${courseId}/builder`);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
@@ -55,7 +82,6 @@ export default function NewCoursePage() {
         title,
         slug,
         description,
-        thumbnail_url: thumbnailUrl || undefined,
         status,
       });
 
@@ -64,8 +90,7 @@ export default function NewCoursePage() {
         return;
       }
 
-      toast.success("Course created successfully!");
-      router.push(`/admin/courses/${res.data.id}/builder`);
+      await handleThumbnailUpload(res.data.id);
     });
   }
 
@@ -84,17 +109,16 @@ export default function NewCoursePage() {
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <BookOpen className="w-6 h-6 text-primary" />
-          Create New Course
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          New Course
         </h1>
         <p className="text-muted-foreground text-sm">
-          Define the course title, clean slug address, short description, and publishing state.
+          Define the title, slug, description, and publishing state.
         </p>
       </div>
 
       {/* Form Card */}
-      <div className="border border-border bg-card p-6 rounded-xl shadow-sm">
+      <div className="bg-card border border-border rounded-xl p-6 md:p-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Title */}
           <div className="space-y-1.5">
@@ -140,20 +164,53 @@ export default function NewCoursePage() {
             />
           </div>
 
-          {/* Thumbnail URL */}
+          {/* Cover Image Upload */}
           <div className="space-y-1.5">
-            <Label htmlFor="course-thumbnail">Thumbnail URL</Label>
-            <Input
-              id="course-thumbnail"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={thumbnailUrl}
-              onChange={(e) => setThumbnailUrl(e.target.value)}
-              disabled={isPending}
-            />
-            <span className="block text-[10px] text-muted-foreground">
-              Optional path to course card banner illustration.
-            </span>
+            <Label htmlFor="course-cover-image">Cover Image</Label>
+            <div className="flex items-center gap-4">
+              <label
+                htmlFor="course-cover-image"
+                className="flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent cursor-pointer text-sm font-medium text-muted-foreground disabled:opacity-50"
+              >
+                <ImageIcon className="w-4 h-4" />
+                {thumbnailFile ? "Change Image" : "Upload Image"}
+                <input
+                  id="course-cover-image"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isPending}
+                  onChange={(e) => {
+                    handleThumbnailChange(e.target.files?.[0] ?? null);
+                    // Reset so the same file can be re-selected
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {thumbnailPreview && (
+                <button
+                  type="button"
+                  onClick={() => handleThumbnailChange(null)}
+                  className="text-xs text-destructive hover:underline"
+                  disabled={isPending}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {thumbnailPreview ? (
+              <div className="mt-2 rounded-md overflow-hidden border border-border max-w-[300px]">
+                <img
+                  src={thumbnailPreview}
+                  alt="Course cover preview"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+            ) : (
+              <span className="block text-[10px] text-muted-foreground">
+                Optional. Upload a cover image that appears on the course card.
+              </span>
+            )}
           </div>
 
           {/* Status */}

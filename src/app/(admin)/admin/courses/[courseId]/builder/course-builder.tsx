@@ -48,7 +48,8 @@ import {
     Plus,
     Trash2,
     Upload,
-    Video
+    Video,
+    X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -85,6 +86,11 @@ export default function CourseBuilder({
   const [lessonContent, setLessonContent] = useState("");
   const [isPreview, setIsPreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sourceMode, setSourceMode] = useState<"url" | "file">("url");
+
+  const isMedia = ["pdf", "video", "image", "file"].includes(lessonType);
+  const bothPresent =
+    isMedia && !!activeLesson?.storage_path && !!activeLesson?.content?.trim();
 
   // ── MODULE ACTIONS ─────────────────────────────────────────
 
@@ -187,6 +193,7 @@ export default function CourseBuilder({
       setLessonType(lesson.content_type as ContentType);
       setLessonContent(lesson.content || "");
       setIsPreview(lesson.is_preview);
+      setSourceMode(lesson.storage_path ? "file" : "url");
     } else {
       setActiveLesson(null);
       setLessonTitle("");
@@ -194,6 +201,7 @@ export default function CourseBuilder({
       setLessonType("text");
       setLessonContent("");
       setIsPreview(false);
+      setSourceMode("url");
     }
     setLessonModalOpen(true);
   }
@@ -205,16 +213,37 @@ export default function CourseBuilder({
     startTransition(async () => {
       let savedLessonId = "";
 
+      // Media lessons hold a single active source: external URL (content) or
+      // uploaded file (storage_path). Decide which to persist so the two never
+      // silently conflict at render time.
+      const contentToSave = isMedia
+        ? sourceMode === "file"
+          ? null
+          : lessonContent.trim() || null
+        : lessonContent;
+
       if (activeLesson) {
         // Edit Lesson
-        const res = await updateLesson({
-          id: activeLesson.id,
-          title: lessonTitle,
-          description: lessonDesc,
-          content_type: lessonType,
-          content: lessonContent,
-          is_preview: isPreview,
-        });
+        const res = await updateLesson(
+          isMedia && sourceMode === "url"
+            ? {
+                id: activeLesson.id,
+                title: lessonTitle,
+                description: lessonDesc,
+                content_type: lessonType,
+                content: contentToSave,
+                storage_path: null,
+                is_preview: isPreview,
+              }
+            : {
+                id: activeLesson.id,
+                title: lessonTitle,
+                description: lessonDesc,
+                content_type: lessonType,
+                content: contentToSave,
+                is_preview: isPreview,
+              }
+        );
 
         if (!res.success) {
           toast.error(res.error);
@@ -228,7 +257,7 @@ export default function CourseBuilder({
           title: lessonTitle,
           description: lessonDesc,
           content_type: lessonType,
-          content: lessonContent,
+          content: contentToSave ?? undefined,
           is_preview: isPreview,
         });
 
@@ -240,7 +269,7 @@ export default function CourseBuilder({
       }
 
       // Handle file upload if file is selected for media types
-      if (selectedFile && ["pdf", "video", "image", "file"].includes(lessonType)) {
+      if (selectedFile && isMedia) {
         const formData = new FormData();
         formData.append("file", selectedFile);
         
@@ -310,17 +339,17 @@ export default function CourseBuilder({
   function getContentTypeIcon(type: string) {
     switch (type) {
       case "pdf":
-        return <FileText className="w-4 h-4 text-red-500" />;
+        return <FileText className="w-4 h-4 text-muted-foreground" />;
       case "video":
-        return <Video className="w-4 h-4 text-blue-500" />;
+        return <Video className="w-4 h-4 text-muted-foreground" />;
       case "link":
-        return <Link2 className="w-4 h-4 text-green-500" />;
+        return <Link2 className="w-4 h-4 text-muted-foreground" />;
       case "image":
-        return <ImageIcon className="w-4 h-4 text-purple-500" />;
+        return <ImageIcon className="w-4 h-4 text-muted-foreground" />;
       case "file":
-        return <File className="w-4 h-4 text-slate-500" />;
+        return <File className="w-4 h-4 text-muted-foreground" />;
       default:
-        return <FileText className="w-4 h-4 text-slate-400" />;
+        return <FileText className="w-4 h-4 text-muted-foreground" />;
     }
   }
 
@@ -339,7 +368,7 @@ export default function CourseBuilder({
         {initialModules.length === 0 ? (
           <div className="border-2 border-dashed border-border rounded-xl p-16 text-center space-y-4 bg-card">
             <Layers className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-            <h3 className="font-bold text-lg">No modules added yet</h3>
+            <h3 className="font-semibold text-lg">No modules added yet</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               Create your course structure by adding modules, then add lessons inside them.
             </p>
@@ -352,10 +381,10 @@ export default function CourseBuilder({
           initialModules.map((mod, modIdx) => (
             <div
               key={mod.id}
-              className="border border-border bg-card rounded-xl overflow-hidden shadow-sm"
+              className="border border-border bg-card rounded-xl overflow-hidden"
             >
               {/* Module Header Bar */}
-              <div className="bg-slate-100 dark:bg-slate-900 border-b border-border px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-muted border-b border-border px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-muted-foreground font-semibold uppercase">
@@ -365,7 +394,7 @@ export default function CourseBuilder({
                       {mod.lessons.length} lessons
                     </Badge>
                   </div>
-                  <h3 className="font-bold text-base text-foreground leading-tight">
+                  <h3 className="font-semibold text-base text-foreground leading-tight">
                     {mod.title}
                   </h3>
                   {mod.description && (
@@ -418,14 +447,14 @@ export default function CourseBuilder({
               {/* Module Lessons Grid */}
               <div className="p-4 space-y-2">
                 {mod.lessons.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="p-8 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg bg-muted/40">
                     No lessons in this module. Add your first lesson to start.
                   </div>
                 ) : (
                   mod.lessons.map((les, lesIdx) => (
                     <div
                       key={les.id}
-                      className="border border-border rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors bg-card"
+                      className="border border-border rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-accent transition-colors bg-card"
                     >
                       <div className="flex items-center gap-3">
                         {/* Drag indicator / content type icon */}
@@ -439,7 +468,7 @@ export default function CourseBuilder({
                               {lesIdx + 1}. {les.title}
                             </span>
                             {les.is_preview && (
-                              <Badge className="text-[9px] px-1 py-0 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                              <Badge className="text-[9px] px-1 py-0 bg-primary/10 text-primary">
                                 Preview
                               </Badge>
                             )}
@@ -638,7 +667,7 @@ export default function CourseBuilder({
               </div>
 
               {/* Preview Status toggle */}
-              <div className="flex items-center justify-between border border-border rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center justify-between border border-border rounded-lg p-3 bg-muted/40">
                 <div className="space-y-0.5">
                   <Label htmlFor="les-preview" className="text-sm font-semibold">
                     Free Preview Access
@@ -691,67 +720,143 @@ export default function CourseBuilder({
                 </div>
               )}
 
-              {/* Media File Uploads (pdf, video, image, file) */}
+              {/* Media source (pdf, video, image, file) */}
               {["pdf", "video", "image", "file"].includes(lessonType) && (
-                <div className="space-y-2 border border-dashed border-border rounded-lg p-5 text-center bg-slate-50/30 dark:bg-slate-900/10">
-                  <div className="mx-auto w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Upload className="w-5 h-5 text-muted-foreground" />
+                <div className="space-y-3 border border-border rounded-lg p-5 bg-muted/20">
+                  {/* Single-source toggle */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex rounded-lg border border-border bg-muted p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSourceMode("url");
+                          setSelectedFile(null);
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          sourceMode === "url"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        External URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSourceMode("file");
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          sourceMode === "file"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Upload File
+                      </button>
+                    </div>
                   </div>
-                  <Label
-                    htmlFor="les-file"
-                    className="cursor-pointer font-semibold text-xs text-primary hover:underline block"
-                  >
-                    Select File to Upload
-                  </Label>
-                  <input
-                    id="les-file"
-                    type="file"
-                    accept={
-                      lessonType === "pdf"
-                        ? "application/pdf"
-                        : lessonType === "image"
-                        ? "image/*"
-                        : lessonType === "video"
-                        ? "video/*"
-                        : "*"
-                    }
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setSelectedFile(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
-                    disabled={isPending}
-                  />
-                  {selectedFile ? (
-                    <div className="text-xs text-foreground font-bold mt-2 truncate bg-muted px-2 py-1 rounded">
-                      Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+
+                  {/* Warning when both sources exist and file mode is active */}
+                  {bothPresent && sourceMode === "file" && (
+                    <div className="text-[11px] text-amber-700 dark:text-amber-400 border border-amber-600/30 rounded-lg px-3 py-2 bg-amber-500/10 text-left">
+                      This lesson has both an uploaded file and an external URL. Uploading or saving keeps the uploaded file.
+                      Switch to "External URL" to keep the URL instead.
                     </div>
-                  ) : activeLesson?.storage_path ? (
-                    <div className="text-[10px] text-muted-foreground mt-2 truncate">
-                      Current file: {activeLesson.storage_path.split("/").pop()}
-                    </div>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground block mt-1">
-                      PDF, MP4, JPEG, PNG, or ZIP. Max file limit 500MB.
-                    </span>
                   )}
 
-                  {/* For video, we also support an external streaming video URL instead of file upload */}
-                  {lessonType === "video" && (
-                    <div className="space-y-1.5 text-left border-t border-border pt-4 mt-4">
-                      <Label htmlFor="les-video-url">Or Stream Video URL</Label>
-                      <Input
-                        id="les-video-url"
-                        type="url"
-                        placeholder="https://example.com/streaming-file.mp4"
-                        value={lessonContent}
-                        onChange={(e) => setLessonContent(e.target.value)}
+                  {/* External URL source */}
+                  {sourceMode === "url" && (
+                    <div className="space-y-1.5 text-left">
+                      <Label htmlFor="les-media-url">
+                        {lessonType === "video" ? "Stream Video URL" : "External Media URL"}
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="les-media-url"
+                          type="url"
+                          placeholder={
+                            lessonType === "pdf"
+                              ? "https://cdn.example.com/material.pdf"
+                              : lessonType === "video"
+                              ? "https://example.com/stream.m3u8"
+                              : lessonType === "image"
+                              ? "https://cdn.example.com/image.png"
+                              : "https://cdn.example.com/file.zip"
+                          }
+                          value={lessonContent}
+                          onChange={(e) => {
+                            setLessonContent(e.target.value);
+                            setSelectedFile(null);
+                          }}
+                          disabled={isPending}
+                        />
+                        {lessonContent.trim() && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={() => setLessonContent("")}
+                            disabled={isPending}
+                            title="Clear URL"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <span className="block text-[9px] text-muted-foreground">
+                        Link external hosting (M3U8/HLS, Backblaze, GoFile, etc.). Chosen source replaces any
+                        uploaded file.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Upload file source */}
+                  {sourceMode === "file" && (
+                    <div className="space-y-2 text-center">
+                      <div className="mx-auto w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-1">
+                        <Upload className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <Label
+                        htmlFor="les-file"
+                        className="cursor-pointer font-semibold text-xs text-primary hover:underline block"
+                      >
+                        Select File to Upload
+                      </Label>
+                      <input
+                        id="les-file"
+                        type="file"
+                        accept={
+                          lessonType === "pdf"
+                            ? "application/pdf"
+                            : lessonType === "image"
+                            ? "image/*"
+                            : lessonType === "video"
+                            ? "video/*"
+                            : "*"
+                        }
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setSelectedFile(e.target.files[0]);
+                            setLessonContent("");
+                          }
+                        }}
+                        className="hidden"
                         disabled={isPending}
                       />
-                      <span className="block text-[9px] text-muted-foreground">
-                        Use this option to link external hosting (Vimeo, Bunny, S3) instead of local upload.
-                      </span>
+                      {selectedFile ? (
+                        <div className="text-xs text-foreground font-semibold mt-1 truncate bg-muted px-2 py-1 rounded">
+                          Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                        </div>
+                      ) : activeLesson?.storage_path ? (
+                        <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                          Current file: {activeLesson.storage_path.split("/").pop()}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground block mt-1">
+                          PDF, MP4, JPEG, PNG, or ZIP. Max file limit 500MB.
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

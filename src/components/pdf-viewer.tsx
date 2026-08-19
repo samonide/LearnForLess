@@ -17,9 +17,9 @@ export default function PDFViewer({ url, allowDownload = true }: PDFViewerProps)
   // This is highly reliable, supports zoom/navigation natively, and doesn't crash on large files.
   // We overlay our premium LMS control bar for a customized feel.
   return (
-    <div className={`flex flex-col border border-border rounded-xl overflow-hidden bg-card ${fullscreen ? "fixed inset-0 z-50 h-screen w-screen" : "h-[650px] w-full"}`}>
+    <div className={`flex flex-col bg-card ring-1 ring-foreground/5 rounded-xl overflow-hidden ${fullscreen ? "fixed inset-0 z-50 h-screen w-screen" : "h-[650px] w-full"}`}>
       {/* Controls Bar */}
-      <div className="border-b border-border bg-muted/30 px-4 py-2 flex items-center justify-between gap-4 text-sm font-medium">
+      <div className="border-b border-border bg-card px-4 py-2 flex items-center justify-between gap-4 text-sm font-medium">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -61,11 +61,11 @@ export default function PDFViewer({ url, allowDownload = true }: PDFViewerProps)
       </div>
 
       {/* Frame Container */}
-      <div className="flex-1 bg-slate-100 dark:bg-slate-900 overflow-auto flex items-center justify-center p-4">
+      <div className="flex-1 bg-muted overflow-auto flex items-center justify-center p-4">
         <iframe
           src={`${url}#toolbar=0&navpanes=0`}
-          className="w-full h-full border-0 rounded-lg shadow-sm"
-          style={{ transform: `scale(${scale})`, transformOrigin: "top center", transition: "transform 0.15s ease-out" }}
+          className="w-full h-full border-0 rounded-lg ring-1 ring-foreground/5"
+          style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
           title="PDF Content"
         />
       </div>

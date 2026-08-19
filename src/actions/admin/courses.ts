@@ -38,6 +38,18 @@ export async function createCourse(
 
     const slug = input.slug || generateSlug(input.title);
 
+    // Check for duplicate course title (case-insensitive)
+    const { data: dupTitle } = await adminClient
+      .from("courses")
+      .select("id")
+      .ilike("title", input.title.trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (dupTitle) {
+      return { success: false, error: "A course with this title already exists." };
+    }
+
     const { data, error } = await adminClient
       .from("courses")
       .insert({
@@ -92,6 +104,20 @@ export async function updateCourse(
     if (rest.description !== undefined) updates.description = rest.description?.trim() ?? null;
     if (rest.thumbnail_url !== undefined) updates.thumbnail_url = rest.thumbnail_url ?? null;
     if (rest.status !== undefined) updates.status = rest.status;
+
+    // Check for duplicate course title (case-insensitive, exclude current)
+    if (rest.title !== undefined) {
+      const { data: dup } = await adminClient
+        .from("courses")
+        .select("id")
+        .ilike("title", rest.title.trim())
+        .neq("id", id)
+        .limit(1)
+        .maybeSingle();
+      if (dup) {
+        return { success: false, error: "A course with this title already exists." };
+      }
+    }
 
     const { error } = await adminClient
       .from("courses")

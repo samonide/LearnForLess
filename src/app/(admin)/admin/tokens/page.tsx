@@ -32,14 +32,13 @@ export default async function AdminTokensPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Key className="w-8 h-8 text-primary" />
-            Student Token Accounts
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Access Tokens
           </h1>
           <p className="text-muted-foreground">
-            Each token is one student account. Create long secure tokens and manage student courses from one place.
+            Each token grants one student account access to courses.
           </p>
         </div>
         <Link href="/admin/tokens/new" className="shrink-0">
@@ -51,13 +50,13 @@ export default async function AdminTokensPage() {
       </div>
 
       {/* Table grid */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {tokens.length === 0 ? (
-          <div className="p-16 text-center space-y-4">
+          <div className="px-6 py-20 text-center space-y-4">
             <Key className="w-12 h-12 text-muted-foreground/40 mx-auto" />
-            <h3 className="font-semibold text-lg">No Access Tokens Created</h3>
+            <h3 className="font-semibold text-lg">No tokens yet</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              Create your first student token account to grant course access.
+              Create your first student token to grant course access.
             </p>
             <Link href="/admin/tokens/new" className="inline-block pt-2">
               <Button className="flex items-center gap-2">
@@ -89,7 +88,7 @@ export default async function AdminTokensPage() {
 
                 return (
                   <TableRow key={token.id}>
-                    <TableCell className="font-bold text-foreground">
+                    <TableCell className="font-medium text-foreground">
                       {token.name}
                       {token.description && (
                         <span className="block text-xs font-normal text-muted-foreground mt-0.5 line-clamp-1">
@@ -99,7 +98,7 @@ export default async function AdminTokensPage() {
                     </TableCell>
                     <TableCell>
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                        {token.token_hint}...
+                        {token.token_hint}…
                       </span>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
@@ -121,11 +120,11 @@ export default async function AdminTokensPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium text-sm">
+                      <span className="font-medium text-sm tabular-nums text-muted-foreground">
                         {token.current_uses}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground tabular-nums">
                       {token.expires_at ? (
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
@@ -143,7 +142,7 @@ export default async function AdminTokensPage() {
                         {token.is_active ? "Active" : "Disabled"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-xs text-muted-foreground tabular-nums">
                       {token.last_used_at ? formatDateTime(token.last_used_at) : "Never used"}
                     </TableCell>
                     <TableCell className="text-right">

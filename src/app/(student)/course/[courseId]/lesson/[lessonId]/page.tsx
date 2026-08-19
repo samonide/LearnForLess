@@ -30,9 +30,11 @@ export default async function LessonPage({ params }: LessonPageProps) {
   if (!lessonResult.success || !lessonResult.data) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
-        <div className="text-center space-y-4 max-w-md border border-border rounded-xl p-8 bg-card shadow-sm">
-          <AlertTriangle className="w-12 h-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-bold text-foreground">Content Unavailable</h2>
+        <div className="text-center space-y-4 max-w-md bg-card border border-border rounded-xl p-8">
+          <div className="w-12 h-12 rounded-xl bg-destructive/10 ring-1 ring-destructive/20 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">Content Unavailable</h2>
           <p className="text-muted-foreground text-sm">
             This lesson is not available, or you do not have permission to view it.
           </p>

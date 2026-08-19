@@ -74,7 +74,7 @@ For non-trivial work:
 
 For complex feature work, use the appropriate Superpowers workflow.
 
-For frontend work, use the frontend-design skill when appropriate.
+For frontend work, use **Design with Intent** for UX decisions and **Impeccable** for visual design/refinement, then verify with **Playwright**.
 
 For external libraries or APIs where version-specific behavior matters, use Context7 when appropriate.
 
@@ -91,6 +91,18 @@ Do not load large documents unless they are relevant to the current task.
 Prefer targeted investigation over repository-wide exploration.
 
 When a task is complete, report the result briefly and stop.
+
+## Workflow
+
+- Before starting any new phase or significant task, inspect the current state and recommend the SINGLE best next task.
+- Explain briefly why it is the best next task and mention important dependencies/risks.
+- Ask me for approval before implementing it.
+- Never automatically continue to the next task after finishing one.
+- After completing an approved task, report briefly what changed, verification results, and the recommended next task.
+- Ask for approval again before continuing.
+- Keep communication concise and in English.
+- Do not repeat information already documented in CLAUDE.md, PROJECT_CONTEXT.md, or IMPLEMENTATION_PLAN.md.
+- When there are multiple reasonable approaches, give me the options and your recommendation before implementation.
 
 ## Session Continuation
 

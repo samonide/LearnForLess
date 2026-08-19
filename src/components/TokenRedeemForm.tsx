@@ -47,7 +47,7 @@ export default function TokenRedeemForm() {
             setError(null);
           }}
           placeholder="XXXX-XXXX-XXXX-XXXX"
-          className={`flex-1 h-10 font-mono text-sm tracking-widest uppercase ${
+          className={`flex-1 h-8 font-mono text-sm tracking-widest uppercase ${
             error ? "border-destructive focus-visible:ring-destructive" : ""
           }`}
           disabled={isPending}
@@ -57,7 +57,7 @@ export default function TokenRedeemForm() {
         <Button
           type="submit"
           disabled={isPending || !token.trim()}
-          className="h-10"
+          className="h-8"
         >
           {isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />

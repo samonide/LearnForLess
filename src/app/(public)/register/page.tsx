@@ -3,7 +3,8 @@
 import { registerStudent } from "@/actions/student/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Loader2, UserPlus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -56,130 +57,96 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-between">
-      {/* Header */}
-      <header className="border-b border-border bg-card px-6 py-4 flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-lg tracking-tight">
-            LearnForLess
-          </span>
-        </div>
-      </header>
+    <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 md:p-10 space-y-6">
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Create an Account
+        </h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Choose a username and password. You can redeem your access token for
+          courses after signing in.
+        </p>
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
-              <UserPlus className="w-7 h-7 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              Create an Account
-            </h1>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Choose a username and password. You can redeem your access token
-              for courses after signing in.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="username-input"
-                className="text-sm font-medium text-foreground"
-              >
-                Username
-              </label>
-              <Input
-                id="username-input"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Choose a username"
-                className="h-10"
-                disabled={isPending}
-                autoComplete="username"
-                autoFocus
-                spellCheck={false}
-              />
-              <p className="text-xs text-muted-foreground">
-                3-30 characters: letters, numbers, underscore, or dash.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="password-input"
-                className="text-sm font-medium text-foreground"
-              >
-                Password
-              </label>
-              <Input
-                id="password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                className="h-10"
-                disabled={isPending}
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="confirm-input"
-                className="text-sm font-medium text-foreground"
-              >
-                Confirm Password
-              </label>
-              <Input
-                id="confirm-input"
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Re-enter your password"
-                className="h-10"
-                disabled={isPending}
-                autoComplete="new-password"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-11"
-              disabled={isPending || !username.trim() || !password || !confirm}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-          </form>
-
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-primary font-medium hover:underline"
-            >
-              Sign in
-            </Link>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="username-input" className="text-xs font-semibold text-foreground">
+            Username
+          </Label>
+          <Input
+            id="username-input"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Choose a username"
+            className="h-10 bg-background"
+            disabled={isPending}
+            autoComplete="username"
+            autoFocus
+            spellCheck={false}
+          />
+          <p className="text-xs text-muted-foreground">
+            3-30 characters: letters, numbers, underscore, or dash.
           </p>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} LearnForLess. All rights reserved.
-      </footer>
+        <div className="space-y-1.5">
+          <Label htmlFor="password-input" className="text-xs font-semibold text-foreground">
+            Password
+          </Label>
+          <Input
+            id="password-input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 8 characters"
+            className="h-10 bg-background"
+            disabled={isPending}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirm-input" className="text-xs font-semibold text-foreground">
+            Confirm Password
+          </Label>
+          <Input
+            id="confirm-input"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Re-enter your password"
+            className="h-10 bg-background"
+            disabled={isPending}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full h-10 font-semibold mt-2"
+          disabled={isPending || !username.trim() || !password || !confirm}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </Button>
+      </form>
+
+      <p className="text-center text-sm text-muted-foreground pt-4 border-t border-border">
+        Already have an account?{" "}
+        <Link
+          href="/login"
+          className="text-primary font-medium hover:underline"
+        >
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

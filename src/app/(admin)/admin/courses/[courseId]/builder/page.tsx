@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Hammer } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import CourseBuilder from "./course-builder";
 
 export const dynamic = "force-dynamic";
@@ -54,21 +54,20 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
   return (
     <div className="space-y-6">
       {/* Navigation & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/admin/courses"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium self-start"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Courses
+        </Link>
         <div className="space-y-1">
-          <Link
-            href="/admin/courses"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Course Registry
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2 pt-1">
-            <Hammer className="w-6 h-6 text-primary" />
-            Visual Course Builder: {course.title}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground pt-1">
+            {course.title}
           </h1>
           <p className="text-muted-foreground text-xs font-mono">
-            ID: {course.id} | /{course.slug}
+            ID: {course.id} · /{course.slug}
           </p>
         </div>
       </div>

@@ -28,6 +28,22 @@ export async function createModule(
     const { user } = await getAdminUser();
     const adminClient = createAdminClient();
 
+    // Check for duplicate module title within the same course
+    const { data: existingTitle } = await adminClient
+      .from("modules")
+      .select("id")
+      .eq("course_id", input.course_id)
+      .ilike("title", input.title.trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTitle) {
+      return {
+        success: false,
+        error: "A module with this title already exists in this course.",
+      };
+    }
+
     // Get max sort_order for this course
     const { data: existing } = await adminClient
       .from("modules")
@@ -85,6 +101,23 @@ export async function updateModule(
       .select("course_id")
       .eq("id", id)
       .single();
+
+    if (!mod) return { success: false, error: "Module not found." };
+
+    // Check for duplicate title within the same course (case-insensitive, exclude current)
+    if (updates.title) {
+      const { data: dup } = await adminClient
+        .from("modules")
+        .select("id")
+        .eq("course_id", mod.course_id)
+        .ilike("title", updates.title.trim())
+        .neq("id", id)
+        .limit(1)
+        .maybeSingle();
+      if (dup) {
+        return { success: false, error: "A module with this title already exists in this course." };
+      }
+    }
 
     const { error } = await adminClient
       .from("modules")

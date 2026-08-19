@@ -157,7 +157,7 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
                 <div
                   key={course.id}
                   onClick={() => handleCourseToggle(course.id)}
-                  className={`border rounded-lg p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors ${
+                  className={`border rounded-lg p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-accent dark:hover:bg-accent transition-colors ${
                     isChecked
                       ? "border-primary bg-primary/5"
                       : "border-border bg-card"
@@ -226,10 +226,10 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
       <Dialog open={generatedToken !== null} onOpenChange={() => {}}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-2">
-              <Key className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="mx-auto w-12 h-12 bg-muted border border-border rounded-full flex items-center justify-center mb-2">
+              <Key className="w-6 h-6 text-primary" />
             </div>
-            <DialogTitle className="text-center text-xl font-bold">
+            <DialogTitle className="text-center text-xl font-semibold">
               Access Token Generated
             </DialogTitle>
             <DialogDescription className="text-center font-medium text-destructive dark:text-red-400 flex items-center gap-1.5 justify-center mt-1">
@@ -240,7 +240,7 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
 
           {/* Token Box */}
           <div className="py-6 space-y-4">
-            <div className="bg-slate-100 dark:bg-slate-900 border border-border p-4 rounded-lg text-center select-all font-mono text-lg font-bold tracking-wider text-primary break-all">
+            <div className="bg-muted/30 border border-border p-4 rounded-lg text-center select-all font-mono text-lg font-semibold tracking-wider text-primary break-all">
               {generatedToken}
             </div>
 

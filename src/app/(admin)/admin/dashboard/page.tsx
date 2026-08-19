@@ -1,13 +1,6 @@
 import { getAdminStats, getRecentAuditLogs } from "@/actions/admin/users";
 import { Badge } from "@/components/ui/badge";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
     Table,
     TableBody,
     TableCell,
@@ -17,16 +10,6 @@ import {
 } from "@/components/ui/table";
 import { createAdminClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/utils";
-import {
-    Activity,
-    BookOpen,
-    FileCode,
-    GraduationCap,
-    Key,
-    Layers,
-    ShieldCheck,
-    UserCheck,
-} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -58,238 +41,150 @@ export default async function AdminDashboardPage() {
   const auditLogs = auditLogsResult.success ? auditLogsResult.data : [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Title */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Activity className="w-8 h-8 text-primary" />
-          Dashboard Overview
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          Dashboard
         </h1>
         <p className="text-muted-foreground">
-          Platform-wide status metrics, access tokens, and administrative activity logs.
+          Platform-wide status, access-token activity, and administrative actions.
         </p>
       </div>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        {/* Total Courses */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Courses
-            </CardTitle>
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.total_courses}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {stats.published_courses} published
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Modules */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Modules
-            </CardTitle>
-            <Layers className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.total_modules}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Across all courses
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Lessons */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Lessons
-            </CardTitle>
-            <FileCode className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.total_lessons}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Learning modules
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Active Tokens */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Active Tokens
-            </CardTitle>
-            <Key className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.active_tokens}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Valid access codes
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Students */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Students
-            </CardTitle>
-            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.total_students}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Redeemed accounts
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Admins */}
-        <Card className="shadow-sm">
-          <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              System Health
-            </CardTitle>
-            <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-sm font-bold text-green-600 dark:text-green-500 flex items-center gap-1 mt-1">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />
-              Online
+      {/* Metrics Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-border rounded-xl overflow-hidden border border-border">
+        {[
+          { label: "Courses", value: stats.total_courses, sub: `${stats.published_courses} published` },
+          { label: "Modules", value: stats.total_modules, sub: "Across all courses" },
+          { label: "Lessons", value: stats.total_lessons, sub: "Published + draft" },
+          { label: "Active Tokens", value: stats.active_tokens, sub: "Valid access codes" },
+          { label: "Students", value: stats.total_students, sub: "Redeemed accounts" },
+        ].map((item) => (
+          <div key={item.label} className="bg-card p-5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {item.label}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Secure TLS active
-            </p>
-          </CardContent>
-        </Card>
+            <div className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+              {item.value}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{item.sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* Activity Logs Split Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Recent Token Activations */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-primary" />
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <header className="px-5 py-4 border-b border-border">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
               Recent Token Activations
-            </CardTitle>
-            <CardDescription>
-              Monitor which tokens have been claimed by student portals.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {!tokenActivity || tokenActivity.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                No token redemptions recorded yet.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Token Name</TableHead>
-                    <TableHead>Student Account</TableHead>
-                    <TableHead>Claim Date</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tokenActivity.map((activity: any, idx: number) => {
-                    const profile = activity.profiles as { email?: string | null; display_name?: string | null } | null;
-                    const token = activity.access_tokens as { name?: string; token_hint?: string | null; is_active?: boolean } | null;
-                    return (
-                      <TableRow key={idx}>
-                        <TableCell className="font-semibold text-xs text-foreground">
-                          {token?.name || "Unknown"}
-                          {token?.token_hint && (
-                            <span className="font-mono bg-muted px-1 py-0.5 rounded text-[10px] text-muted-foreground ml-2">
-                              {token.token_hint}...
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {profile?.display_name || profile?.email || "Anonymous Student"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatDateTime(activity.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={token?.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0.5">
-                            {token?.is_active ? "Active" : "Revoked"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Access codes claimed through the student portal.
+            </p>
+          </header>
+          {!tokenActivity || tokenActivity.length === 0 ? (
+            <div className="p-12 text-center text-sm text-muted-foreground">
+              No token redemptions recorded yet.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Token</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Claimed</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tokenActivity.map((activity: any, idx: number) => {
+                  const profile = activity.profiles as { email?: string | null; display_name?: string | null } | null;
+                  const token = activity.access_tokens as { name?: string; token_hint?: string | null; is_active?: boolean } | null;
+                  return (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium text-xs text-foreground">
+                        {token?.name || "Unknown"}
+                        {token?.token_hint && (
+                          <span className="font-mono bg-muted px-1 py-0.5 rounded text-[10px] text-muted-foreground ml-2">
+                            {token.token_hint}…
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {profile?.display_name || profile?.email || "Anonymous Student"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
+                        {formatDateTime(activity.created_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={token?.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0.5">
+                          {token?.is_active ? "Active" : "Revoked"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </section>
 
         {/* Recent Admin Audit Logs */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-              Administrative Audit Logs
-            </CardTitle>
-            <CardDescription>
-              Secured record of actions executed by managers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {auditLogs.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                No administrative audit logs available.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Administrator</TableHead>
-                    <TableHead>Action Execution</TableHead>
-                    <TableHead>Entity</TableHead>
-                    <TableHead>Date / Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {auditLogs.map((log: any) => {
-                    const admin = log.profiles as { email?: string | null; display_name?: string | null } | null;
-                    return (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-xs">
-                          <span className="font-semibold text-foreground">
-                            {admin?.display_name || "Admin"}
-                          </span>
-                          <span className="block text-[10px] text-muted-foreground">
-                            {admin?.email}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs uppercase text-primary">
-                          {log.action.replace(/_/g, " ")}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold">
-                          {log.entity_type}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatDateTime(log.created_at)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <header className="px-5 py-4 border-b border-border">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              Administrative Activity
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Secured record of actions taken by managers.
+            </p>
+          </header>
+          {auditLogs.length === 0 ? (
+            <div className="p-12 text-center text-sm text-muted-foreground">
+              No administrative activity logged yet.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Administrator</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead className="text-right">Date / Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((log: any) => {
+                  const admin = log.profiles as { email?: string | null; display_name?: string | null } | null;
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs">
+                        <span className="font-semibold text-foreground">
+                          {admin?.display_name || "Admin"}
+                        </span>
+                        <span className="block text-[10px] text-muted-foreground">
+                          {admin?.email}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs uppercase text-primary">
+                        {log.action.replace(/_/g, " ")}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-foreground">
+                        {log.entity_type}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums text-right">
+                        {formatDateTime(log.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </section>
       </div>
     </div>
   );

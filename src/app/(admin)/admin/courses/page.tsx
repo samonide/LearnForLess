@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { PlusCircle, MoreHorizontal, BookOpen, Layers, GraduationCap, Edit, Settings, Trash2, Globe, Archive, Lock } from "lucide-react";
+import { PlusCircle, MoreHorizontal, BookOpen, Layers, GraduationCap, Edit, Settings, Trash2, Globe, Archive } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { setCourseStatus, deleteCourse } from "@/actions/admin/courses";
 import { toast } from "sonner";
@@ -52,37 +52,36 @@ export default async function AdminCoursesPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <BookOpen className="w-8 h-8 text-primary" />
-            Course Registry
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Courses
           </h1>
           <p className="text-muted-foreground">
-            Manage your courses, edit modules and lessons, configure publishing status, and monitor student enrollments.
+            Create courses, build modules and lessons, set publication, and see enrollments.
           </p>
         </div>
         <Link href="/admin/courses/new" className="shrink-0">
           <Button className="flex items-center gap-2">
             <PlusCircle className="w-4 h-4" />
-            Create Course
+            New Course
           </Button>
         </Link>
       </div>
 
       {/* Courses Table */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {!courses || courses.length === 0 ? (
-          <div className="p-16 text-center space-y-4">
+          <div className="px-6 py-20 text-center space-y-4">
             <BookOpen className="w-12 h-12 text-muted-foreground/40 mx-auto" />
-            <h3 className="font-semibold text-lg">No Courses Registered</h3>
+            <h3 className="font-semibold text-lg">No courses yet</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              Get started by creating your very first learning course. Set up modules, lessons, and add files.
+              Get started by creating your first course, then add modules and lessons.
             </p>
             <Link href="/admin/courses/new" className="inline-block pt-2">
               <Button className="flex items-center gap-2">
                 <PlusCircle className="w-4 h-4" />
-                Create Course
+                New Course
               </Button>
             </Link>
           </div>
@@ -90,7 +89,7 @@ export default async function AdminCoursesPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="w-[76px]"></TableHead>
                 <TableHead>Course Title</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Modules</TableHead>
@@ -107,14 +106,14 @@ export default async function AdminCoursesPage() {
                 const lessonCount = course.modules?.reduce((acc: number, curr: any) => {
                   return acc + (curr.lessons?.length ?? 0);
                 }, 0) ?? 0;
-                
+
                 // Enrollments count
                 const enrollmentCount = (course.user_courses as any)?.[0]?.count ?? 0;
 
                 return (
                   <TableRow key={course.id}>
                     <TableCell>
-                      <div className="w-12 h-12 rounded bg-slate-100 dark:bg-slate-800 border border-border overflow-hidden flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center">
                         {course.thumbnail_url ? (
                           <img
                             src={course.thumbnail_url}
@@ -126,8 +125,8 @@ export default async function AdminCoursesPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-bold text-foreground">
-                      <Link href={`/admin/courses/${course.id}`} className="hover:text-primary transition-colors">
+                    <TableCell className="font-medium text-foreground">
+                      <Link href={`/admin/courses/${course.id}/edit`} className="hover:text-primary transition-colors">
                         {course.title}
                       </Link>
                       <span className="block text-xs font-mono text-muted-foreground mt-0.5">
@@ -148,15 +147,15 @@ export default async function AdminCoursesPage() {
                         {course.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{moduleCount}</TableCell>
-                    <TableCell className="font-medium">{lessonCount}</TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-muted-foreground tabular-nums">{moduleCount}</TableCell>
+                    <TableCell className="font-medium text-muted-foreground tabular-nums">{lessonCount}</TableCell>
+                    <TableCell className="font-medium tabular-nums">
                       <div className="flex items-center gap-1">
                         <GraduationCap className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{enrollmentCount}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground text-xs tabular-nums">
                       {formatDate(course.created_at)}
                     </TableCell>
                     <TableCell className="text-right">

@@ -1,166 +1,299 @@
 import Link from "next/link";
-import { getStudentCourses } from "@/actions/student/courses";
-import { getNextUnfinishedLesson } from "@/actions/student/courses";
+import { getStudentCourses, getNextUnfinishedLesson } from "@/actions/student/courses";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import TokenRedeemForm from "@/components/TokenRedeemForm";
-import { BookOpen, GraduationCap, Calendar, ListChecks, PlayCircle, KeyRound } from "lucide-react";
+import { ArrowRight, BookOpen, Play, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+interface CourseItem {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  status: string;
+  sort_order: number;
+  completed_lessons: number;
+  total_lessons: number;
+  progress_pct: number;
+  module_count: number;
+  expires_at: string | null;
+}
+
+function groupCourses(courses: CourseItem[]) {
+  const inProgress: CourseItem[] = [];
+  const completed: CourseItem[] = [];
+  const notStarted: CourseItem[] = [];
+
+  for (const course of courses) {
+    if (course.progress_pct >= 100) {
+      completed.push(course);
+    } else if (course.progress_pct > 0) {
+      inProgress.push(course);
+    } else {
+      notStarted.push(course);
+    }
+  }
+
+  return { inProgress, completed, notStarted };
+}
+
+/* ──────────────────────
+   Course card — compact
+   visual card with
+   prominent thumbnail
+   ────────────────────── */
+function CourseCard({ course, href }: { course: CourseItem; href: string }) {
+  return (
+    <Link href={href} className="block group">
+      <div className="bg-card border border-border rounded-xl overflow-hidden transition group-hover:border-muted-foreground/30">
+        <div className="aspect-[5/3] bg-muted overflow-hidden">
+          {course.thumbnail_url ? (
+            <img
+              src={course.thumbnail_url}
+              alt=""
+              className="w-full h-full object-cover transition duration-300 group-hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <BookOpen className="w-8 h-8 text-muted-foreground/40" />
+            </div>
+          )}
+        </div>
+        <div className="p-4 md:p-5 space-y-2.5">
+          <h3 className="text-base font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+            {course.title}
+          </h3>
+          {course.description && (
+            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
+              {course.description}
+            </p>
+          )}
+          <div className="flex items-center justify-between pt-0.5">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="tabular-nums">{course.module_count} module{course.module_count !== 1 ? "s" : ""}</span>
+              <span className="tabular-nums">{course.total_lessons} lesson{course.total_lessons !== 1 ? "s" : ""}</span>
+            </div>
+            {course.progress_pct > 0 && (
+              <span className="text-xs tabular-nums text-primary font-medium">{course.progress_pct}%</span>
+            )}
+          </div>
+          {course.progress_pct > 0 && (
+            <div className="h-1 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${course.progress_pct}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ──────────────────────
+   Featured in-progress
+   — larger hero card
+   ────────────────────── */
+function FeaturedCard({ course, href }: { course: CourseItem; href: string }) {
+  return (
+    <Link href={href} className="block group">
+      <div className="bg-card border border-border rounded-xl overflow-hidden transition group-hover:border-muted-foreground/30">
+        <div className="aspect-[5/3] md:aspect-[8/3] bg-muted overflow-hidden">
+          {course.thumbnail_url ? (
+            <img
+              src={course.thumbnail_url}
+              alt=""
+              className="w-full h-full object-cover transition duration-300 group-hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <BookOpen className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+          )}
+        </div>
+        <div className="p-5 md:p-7 space-y-3">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+            {course.title}
+          </h2>
+          {course.description && (
+            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
+              {course.description}
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="tabular-nums">{course.module_count} module{course.module_count !== 1 ? "s" : ""}</span>
+              <span className="tabular-nums">{course.total_lessons} lesson{course.total_lessons !== 1 ? "s" : ""}</span>
+              <span className="tabular-nums text-primary font-medium">{course.completed_lessons} completed</span>
+            </div>
+            <Button size="sm" className="shrink-0">
+              Continue
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${course.progress_pct}%` }}
+              />
+            </div>
+            <span className="text-sm font-semibold text-foreground tabular-nums min-w-[3ch] text-right">
+              {course.progress_pct}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default async function DashboardPage() {
   const coursesResult = await getStudentCourses();
 
+  // ── Error state ──
   if (!coursesResult.success) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center space-y-4 max-w-md">
-          <GraduationCap className="w-12 h-12 text-destructive mx-auto" />
-          <h2 className="text-lg font-semibold">Error Loading Courses</h2>
-          <p className="text-muted-foreground text-sm">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        <div className="max-w-lg">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground text-balance">
+            Your Courses
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            We couldn&rsquo;t load your courses right now.
+          </p>
+          <p className="text-destructive text-sm mt-4">
             {coursesResult.error}
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
-  const courses = (coursesResult.data || []) as any[];
+  const courses = (coursesResult.data || []) as CourseItem[];
+  const { inProgress, completed, notStarted } = groupCourses(courses);
+
+  // ── Stats ──
+  const totalLessons = courses.reduce((sum, c) => sum + c.total_lessons, 0);
+  const completedLessons = courses.reduce((sum, c) => sum + c.completed_lessons, 0);
+  const overallPct = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100);
+
+  // ── Pre-compute hrefs ──
+  const courseHrefs = new Map<string, string>();
+  for (const course of [...inProgress, ...notStarted]) {
+    const { lessonId } = await getNextUnfinishedLesson(course.id);
+    courseHrefs.set(
+      course.id,
+      lessonId
+        ? `/course/${course.id}/lesson/${lessonId}`
+        : `/course/${course.id}`
+    );
+  }
+  for (const course of completed) {
+    courseHrefs.set(course.id, `/course/${course.id}`);
+  }
 
   return (
-    <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
-      {/* Welcome header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Welcome back!
+    <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      {/* ── Header ── */}
+      <div className="mb-8 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground text-balance leading-[1.1]">
+          Your Courses
         </h1>
-        <p className="text-muted-foreground">
-          Track your progress and continue learning where you left off.
+        <p className="text-muted-foreground text-sm mt-2">
+          {courses.length} course{courses.length !== 1 ? "s" : ""} &middot; {overallPct}% overall
+          {inProgress.length > 0 && ` · ${inProgress.length} in progress`}
         </p>
       </div>
 
-      {/* Course list grid */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-2 border-b border-border pb-3">
-          <BookOpen className="w-5 h-5 text-primary" />
-          Your Courses
-        </h2>
-
-        {courses.length === 0 ? (
-          <div className="border border-dashed border-border rounded-xl p-12 text-center bg-card">
-            <div className="max-w-md mx-auto space-y-4">
-              <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto" />
-              <h3 className="font-semibold text-lg">No Courses Available</h3>
-              <p className="text-muted-foreground text-sm">
-                You don&apos;t have any courses yet. Enter an access token from
-                your instructor below to unlock your courses.
-              </p>
-              <div className="pt-2 max-w-sm mx-auto">
-                <TokenRedeemForm />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {await Promise.all(
-              courses.map(async (course) => {
-                // Fetch the continue lesson ID
-                const { lessonId } = await getNextUnfinishedLesson(course.id);
-                
-                // If there are no lessons or all are done, link to course detail page
-                // But normally we'll link to /course/[id]/lesson/[firstId] or /course/[id]
-                const continueHref = lessonId
-                  ? `/course/${course.id}/lesson/${lessonId}`
-                  : `/course/${course.id}`;
-
-                return (
-                  <div
-                    key={course.id}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200"
-                  >
-                    {/* Thumbnail placeholder or image */}
-                    <div className="aspect-video w-full bg-slate-100 dark:bg-slate-900 border-b border-border flex items-center justify-center relative overflow-hidden">
-                      {course.thumbnail_url ? (
-                        <img
-                          src={course.thumbnail_url}
-                          alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <BookOpen className="w-12 h-12 text-muted-foreground/40" />
-                      )}
-                      
-                      {/* Optional expiry indicator */}
-                      {course.expires_at && (
-                        <div className="absolute top-2 right-2 bg-background/90 text-foreground backdrop-blur-sm px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 border border-border">
-                          <Calendar className="w-3 h-3 text-destructive" />
-                          <span>Expires: {formatDate(course.expires_at)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="flex-1 p-5 space-y-4">
-                      <div className="space-y-2">
-                        <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
-                          {course.title}
-                        </h3>
-                        <p className="text-muted-foreground text-sm line-clamp-2 min-h-[2.5rem]">
-                          {course.description || "No description provided."}
-                        </p>
-                      </div>
-
-                      {/* Course info badges */}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-medium">
-                        <span className="flex items-center gap-1">
-                          <ListChecks className="w-3.5 h-3.5" />
-                          {course.module_count} modules
-                        </span>
-                        <span>•</span>
-                        <span>{course.total_lessons} lessons</span>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="space-y-1.5 pt-1">
-                        <div className="flex justify-between text-xs font-semibold text-foreground">
-                          <span>Progress</span>
-                          <span>{course.progress_pct}%</span>
-                        </div>
-                        <Progress value={course.progress_pct} className="h-2" />
-                      </div>
-                    </div>
-
-                    {/* Card Footer Button */}
-                    <div className="border-t border-border p-4 bg-muted/20">
-                      <Link href={continueHref} className="w-full block">
-                        <Button className="w-full flex items-center gap-2 group-hover:bg-primary/95 transition-all">
-                          <PlayCircle className="w-4 h-4" />
-                          Continue Course
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {/* Token redemption — always visible */}
-        <div className="border border-border rounded-xl p-5 bg-card">
-          <div className="flex items-center gap-2 mb-3">
-            <KeyRound className="w-4 h-4 text-primary" />
-            <h3 className="font-semibold text-sm text-foreground">Redeem Another Token</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Enter a new access token to unlock additional courses.
+      {/* ── Empty state ── */}
+      {courses.length === 0 ? (
+        <div className="max-w-lg">
+          <p className="text-muted-foreground leading-relaxed mb-6">
+            You don&rsquo;t have any courses yet. Enter an access token from your instructor below
+            to unlock your first course.
           </p>
-          <div className="max-w-sm">
+          <div className="border-t border-border pt-6">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
+              Redeem access token
+            </p>
             <TokenRedeemForm />
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-12">
+          {/* ── In progress ── */}
+          {inProgress.length > 0 && (
+            <section>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+                In progress
+              </p>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {inProgress.map((course) => (
+                  <FeaturedCard
+                    key={course.id}
+                    course={course}
+                    href={courseHrefs.get(course.id)!}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Not started ── */}
+          {notStarted.length > 0 && (
+            <section>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+                Not started
+              </p>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {notStarted.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    href={courseHrefs.get(course.id)!}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Completed ── */}
+          {completed.length > 0 && (
+            <section>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+                Completed
+              </p>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {completed.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    href={courseHrefs.get(course.id)!}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Token redemption ── */}
+          <div className="border-t border-border pt-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+              Redeem another token
+            </p>
+            <p className="text-muted-foreground text-sm mb-4 max-w-md">
+              Enter a new access token to unlock additional courses.
+            </p>
+            <div className="max-w-sm">
+              <TokenRedeemForm />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

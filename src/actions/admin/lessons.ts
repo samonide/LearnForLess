@@ -55,6 +55,22 @@ export async function createLesson(
     const { user } = await getAdminUser();
     const adminClient = createAdminClient();
 
+    // Check for duplicate lesson title within the same module
+    const { data: existingTitle } = await adminClient
+      .from("lessons")
+      .select("id")
+      .eq("module_id", input.module_id)
+      .ilike("title", input.title.trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTitle) {
+      return {
+        success: false,
+        error: "A lesson with this title already exists in this module.",
+      };
+    }
+
     // Get max sort_order for this module
     const { data: existing } = await adminClient
       .from("lessons")
@@ -123,6 +139,29 @@ export async function updateLesson(
     if (rest.storage_path !== undefined) updates.storage_path = rest.storage_path;
     if (rest.is_preview !== undefined) updates.is_preview = rest.is_preview;
     if (rest.sort_order !== undefined) updates.sort_order = rest.sort_order;
+
+    // Check for duplicate title within the same module (case-insensitive, exclude current)
+    if (rest.title !== undefined) {
+      const { data: lesson } = await adminClient
+        .from("lessons")
+        .select("module_id")
+        .eq("id", id)
+        .single();
+
+      if (lesson) {
+        const { data: dup } = await adminClient
+          .from("lessons")
+          .select("id")
+          .eq("module_id", lesson.module_id)
+          .ilike("title", rest.title.trim())
+          .neq("id", id)
+          .limit(1)
+          .maybeSingle();
+        if (dup) {
+          return { success: false, error: "A lesson with this title already exists in this module." };
+        }
+      }
+    }
 
     const { error } = await adminClient.from("lessons").update(updates).eq("id", id);
     if (error) return { success: false, error: error.message };

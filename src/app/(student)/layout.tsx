@@ -30,7 +30,7 @@ export default async function StudentLayout({
   const displayName = profile?.display_name || profile?.username || "Student";
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-background flex flex-col">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -55,7 +55,7 @@ export default async function StudentLayout({
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-border">
+              <div className="w-8 h-8 rounded-xl bg-muted ring-1 ring-foreground/5 flex items-center justify-center">
                 <UserIcon className="w-4 h-4 text-muted-foreground" />
               </div>
               <span className="font-medium text-foreground hidden sm:inline">

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import EditTokenForm from "./edit-token-form";
@@ -52,21 +52,20 @@ export default async function EditTokenPage({ params }: EditTokenPageProps) {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Student Tokens
+          Back to Tokens
         </Link>
       </div>
 
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <KeyRound className="w-6 h-6 text-primary" />
-          Edit Student Token Account
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Edit Token
         </h1>
         <p className="text-muted-foreground text-sm">
-          Update student name, assigned courses, and token notes. Course changes update this student account.
+          Update the student name, assigned courses, and token notes.
         </p>
       </div>
 
-      <div className="border border-border bg-card p-6 rounded-xl shadow-sm">
+      <div className="bg-card border border-border rounded-xl p-6 md:p-8">
         <EditTokenForm
           token={{
             id: token.id,

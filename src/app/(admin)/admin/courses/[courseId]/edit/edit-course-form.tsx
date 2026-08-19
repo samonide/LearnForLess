@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateCourse } from "@/actions/admin/courses";
+import { updateCourse, uploadCourseThumbnail } from "@/actions/admin/courses";
 import { generateSlug } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Image as ImageIcon, Loader2 } from "lucide-react";
 import type { Course } from "@/types";
 
 interface EditCourseFormProps {
@@ -30,10 +30,24 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
   const [title, setTitle] = useState(course.title);
   const [slug, setSlug] = useState(course.slug);
   const [description, setDescription] = useState(course.description || "");
-  const [thumbnailUrl, setThumbnailUrl] = useState(course.thumbnail_url || "");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [status, setStatus] = useState<"draft" | "published" | "archived">(
     course.status as any
   );
+
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    };
+  }, [thumbnailPreview]);
+
+  function handleThumbnailChange(file: File | null) {
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    setThumbnailFile(file);
+    setThumbnailPreview(file ? URL.createObjectURL(file) : null);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,12 +62,21 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         title,
         slug,
         description,
-        thumbnail_url: thumbnailUrl || undefined,
         status,
       });
 
       if (res.success) {
-        toast.success("Course metadata updated successfully!");
+        // Upload new thumbnail if one was selected
+        if (thumbnailFile) {
+          const uploadRes = await uploadCourseThumbnail(course.id, thumbnailFile);
+          if (!uploadRes.success) {
+            toast.error(`Metadata saved, but cover image upload failed: ${uploadRes.error}`);
+          } else {
+            toast.success("Course and cover image updated successfully!");
+          }
+        } else {
+          toast.success("Course metadata updated successfully!");
+        }
         router.push("/admin/courses");
         router.refresh();
       } else {
@@ -108,17 +131,60 @@ export default function EditCourseForm({ course }: EditCourseFormProps) {
         />
       </div>
 
-      {/* Thumbnail URL */}
+      {/* Cover Image */}
       <div className="space-y-1.5">
-        <Label htmlFor="edit-course-thumbnail">Thumbnail URL</Label>
-        <Input
-          id="edit-course-thumbnail"
-          type="url"
-          placeholder="https://example.com/image.jpg"
-          value={thumbnailUrl}
-          onChange={(e) => setThumbnailUrl(e.target.value)}
-          disabled={isPending}
-        />
+        <Label htmlFor="edit-course-cover-image">Cover Image</Label>
+        <div className="flex items-center gap-4">
+          <label
+            htmlFor="edit-course-cover-image"
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent cursor-pointer text-sm font-medium text-muted-foreground disabled:opacity-50"
+          >
+            <ImageIcon className="w-4 h-4" />
+            {thumbnailFile ? "Change Image" : course.thumbnail_url ? "Replace Image" : "Upload Image"}
+            <input
+              id="edit-course-cover-image"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={isPending}
+              onChange={(e) => {
+                handleThumbnailChange(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {(thumbnailPreview || course.thumbnail_url) && (
+            <button
+              type="button"
+              onClick={() => handleThumbnailChange(null)}
+              className="text-xs text-destructive hover:underline"
+              disabled={isPending}
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
+        {thumbnailPreview ? (
+          <div className="mt-2 rounded-md overflow-hidden border border-border max-w-[300px]">
+            <img
+              src={thumbnailPreview}
+              alt="New course cover preview"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        ) : course.thumbnail_url ? (
+          <div className="mt-2 rounded-md overflow-hidden border border-border max-w-[300px]">
+            <img
+              src={course.thumbnail_url}
+              alt="Current course cover"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        ) : (
+          <span className="block text-[10px] text-muted-foreground">
+            Optional. Upload a cover image that appears on the course card.
+          </span>
+        )}
       </div>
 
       {/* Status */}

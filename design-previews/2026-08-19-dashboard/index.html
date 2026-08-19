@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Dashboard — Design Direction Preview</title>
+<style>
+  :root {
+    --bg: oklch(0.985 0.003 60);
+    --fg: oklch(0.17 0.012 60);
+    --muted: oklch(0.55 0.012 60);
+    --primary: oklch(0.55 0.105 267);
+    --primary-muted: oklch(0.55 0.105 267 / 0.08);
+    --accent: oklch(0.72 0.12 50);
+    --ring: oklch(0.17 0.012 60 / 0.05);
+    --border: oklch(0.17 0.012 60 / 0.08);
+    --card: #fff;
+    --radius: 0.625rem;
+    --font-heading: 'Newsreader', 'Georgia', 'Times New Roman', serif;
+    --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+  }
+  .dark {
+    --bg: oklch(0.13 0.008 60);
+    --fg: oklch(0.92 0.006 60);
+    --muted: oklch(0.55 0.008 60);
+    --primary: oklch(0.62 0.10 267);
+    --primary-muted: oklch(0.62 0.10 267 / 0.12);
+    --accent: oklch(0.68 0.11 50);
+    --ring: oklch(0.92 0.006 60 / 0.06);
+    --border: oklch(0.92 0.006 60 / 0.10);
+    --card: oklch(0.17 0.008 60);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 52px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .topbar-brand { font-family: var(--font-heading); font-size: 18px; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+  .topbar-nav { display: flex; gap: 20px; align-items: center; font-size: 13px; color: var(--muted); }
+  .topbar-nav a { color: var(--muted); text-decoration: none; }
+  .topbar-nav a:hover { color: var(--fg); }
+  .theme-toggle {
+    padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px;
+    font-size: 12px; cursor: pointer; background: transparent; color: var(--muted); font-family: var(--font-sans);
+  }
+
+  /* ── Layout ── */
+  .preview-shell {
+    max-width: 1280px; margin: 0 auto; padding: 40px 24px;
+  }
+  .preview-intro { margin-bottom: 36px; }
+  .preview-intro h1 { font-family: var(--font-heading); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .preview-intro p { color: var(--muted); font-size: 14px; margin-top: 4px; max-width: 520px; }
+
+  .directions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 860px) {
+    .directions-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Direction card ── */
+  .dir-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--card);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .dir-card:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-muted); }
+  .dir-card.recommended { border-color: var(--primary); }
+  .dir-card.recommended .dir-badge { background: var(--primary); color: #fff; }
+
+  .dir-mockup {
+    padding: 32px 28px;
+    min-height: 380px;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .dir-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .dir-label {
+    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+    color: var(--fg); letter-spacing: -0.01em;
+  }
+  .dir-sub {
+    font-size: 12px; color: var(--muted);
+    max-width: 240px; text-align: right; line-height: 1.4;
+  }
+  .dir-badge {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 10px; border-radius: 999px;
+    background: var(--primary-muted); color: var(--primary);
+    white-space: nowrap;
+  }
+  .pick-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 999px; border: 1px solid var(--primary);
+    background: var(--primary); color: #fff;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .pick-btn:hover { opacity: 0.88; }
+
+  /* ── Dials ── */
+  .dials-bar {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    padding: 16px 0; margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dial { display: flex; flex-direction: column; gap: 4px; }
+  .dial-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .dial-name { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .dial-val { font-size: 13px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+  .dial input[type=range] { width: 100%; accent-color: var(--primary); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgb(0 0 0 / 0.3); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: var(--card); border-radius: var(--radius);
+    padding: 28px; max-width: 400px; width: 90%;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgb(0 0 0 / 0.15);
+  }
+  .modal-box h3 { font-family: var(--font-heading); font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .modal-box .dir-name { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .modal-box .dials-summary { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .modal-box textarea {
+    width: 100%; height: 60px; padding: 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-family: var(--font-sans); font-size: 13px; resize: vertical;
+    background: var(--bg); color: var(--fg);
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+  .modal-actions button { padding: 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
+  .modal-actions button.confirm { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── Shared mockup styles ── */
+  .mk-heading { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.015em; }
+  .mk-muted { color: var(--muted); }
+  .mk-primary { color: var(--primary); }
+  .mk-accent { color: var(--accent); }
+  .mk-mono { font-family: var(--font-mono); font-size: 12px; }
+  .mk-pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+  }
+  .mk-divider { border: none; border-top: 1px solid var(--border); }
+  .mk-tag {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .mk-progress-line {
+    height: 2px; border-radius: 999px; background: var(--border); overflow: hidden;
+  }
+  .mk-progress-fill {
+    height: 100%; border-radius: 999px; background: var(--primary);
+  }
+  .mk-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 999px; border: 1px solid var(--border);
+    font-size: 13px; font-weight: 500; cursor: default;
+    background: transparent; color: var(--fg); font-family: var(--font-sans);
+  }
+  .mk-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── Direction A: Editorial List ── */
+  .dir-a { display: flex; flex-direction: column; gap: 0; }
+  .dir-a .hero { margin-bottom: 40px; }
+  .dir-a .hero h2 { font-family: var(--font-heading); font-size: 36px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
+  .dir-a .hero .stat { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .dir-a .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 24px; }
+  .dir-a .course-entry { padding: 20px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .dir-a .course-entry:last-child { border-bottom: 1px solid var(--border); }
+  .dir-a .course-title { font-family: var(--font-heading); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .dir-a .course-desc { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 480px; }
+  .dir-a .course-meta { display: flex; gap: 16px; align-items: center; font-size: 12px; color: var(--muted); }
+  .dir-a .course-progress { display: flex; align-items: center; gap: 10px; }
+  .dir-a .course-progress .bar { flex: 1; height: 2px; border-radius: 999px; background: var(--border); }
+  .dir-a .course-progress .bar-fill { height: 100%; border-radius: 999px; background: var(--primary); }
+  .dir-a .course-progress .pct { font-size: 12px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; }
+  .dir-a .course-action { font-size: 13px; font-weight: 500; color: var(--primary); display: inline-flex; align-items: center; gap: 4px; }
+
+  /* ── Direction B: Magazine Grid ── */
+  .dir-b { display: flex; flex-direction: column; gap: 0; }
+  .dir-b .hero { margin-bottom: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: end; }
+  .dir-b .hero h2 { font-family: var(--font-heading); font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+  .dir-b .hero .stat { font-size: 48px; font-family: var(--font-heading); font-weight: 600; color: var(--primary); line-height: 1; }
+  .dir-b .hero .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .dir-b .courses { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .dir-b .course-featured { padding: 24px; background: var(--primary-muted); border-radius: var(--radius); display: flex; flex-direction: column; gap: 12px; }
+  .dir-b .course-featured .title { font-family: var(--font-heading); font-size: 22px; font-weight: 600; }
+  .dir-b .course-side { display: flex; flex-direction: column; gap: 12px; }
+  .dir-b .course-compact { padding: 14px; border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .dir-b .course-compact .title { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
+  .dir-b .course-compact .meta { font-size: 11px; color: var(--muted); }
+
+  /* ── Direction C: Timeline/Feed ── */
+  .dir-c { display: flex; flex-direction: column; gap: 0; }
+  .dir-c .hero { margin-bottom: 36px; max-width: 400px; }
+  .dir-c .hero h2 { font-family: var(--font-heading); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+  .dir-c .hero .sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .dir-c .chapter { display: flex; gap: 16px; padding: 24px 0; border-top: 1px solid var(--border); }
+  .dir-c .chapter-num { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-width: 32px; padding-top: 3px; }
+  .dir-c .chapter-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .dir-c .chapter-title { font-family: var(--font-heading); font-size: 20px; font-weight: 600; }
+  .dir-c .chapter-desc { font-size: 13px; color: var(--muted); max-width: 420px; line-height: 1.5; }
+  .dir-c .chapter-progress { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .dir-c .chapter-progress .bar { width: 120px; height: 2px; border-radius: 999px; background: var(--border); }
+  .dir-c .chapter-progress .bar-fill { height: 100%; border-radius: 999px; background: var(--primary); }
+  .dir-c .chapter-progress .pct { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── Direction D: Minimalist ── */
+  .dir-d { display: flex; flex-direction: column; gap: 0; }
+  .dir-d .hero { margin-bottom: 32px; display: flex; align-items: baseline; gap: 12px; }
+  .dir-d .hero .count { font-family: var(--font-heading); font-size: 56px; font-weight: 600; color: var(--primary); line-height: 1; }
+  .dir-d .hero .count-label { font-size: 13px; color: var(--muted); }
+  .dir-d .course-row { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 14px; align-items: center; padding: 14px 0; border-top: 1px solid var(--border); }
+  .dir-d .course-row .idx { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .dir-d .course-row .info { display: flex; flex-direction: column; gap: 2px; }
+  .dir-d .course-row .title { font-family: var(--font-heading); font-size: 16px; font-weight: 600; }
+  .dir-d .course-row .desc { font-size: 12px; color: var(--muted); }
+  .dir-d .course-row .pct { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--primary); }
+  .dir-d .course-row .arrow { color: var(--muted); font-size: 14px; }
+
+  /* ── Responsive mockup scaling ── */
+  @media (max-width: 600px) {
+    .dir-mockup { padding: 20px 16px; min-height: 300px; }
+    .dir-b .courses { grid-template-columns: 1fr; }
+    .dir-b .hero { grid-template-columns: 1fr; }
+    .dir-d .course-row { grid-template-columns: 28px 1fr auto; }
+    .dir-d .course-row .desc { display: none; }
+  }
+</style>
+</head>
+<body class="light">
+
+<div class="topbar">
+  <span class="topbar-brand">LearnForLess</span>
+  <nav class="topbar-nav">
+    <a href="#">Dashboard</a>
+    <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">Dark</button>
+  </nav>
+</div>
+
+<div class="preview-shell">
+  <div class="preview-intro">
+    <h1>Student Dashboard — Design Direction Preview</h1>
+    <p>Four compositional directions. Direction previews, not the final app. Select a direction to proceed with implementation.</p>
+  </div>
+
+  <!-- Dials -->
+  <div class="dials-bar">
+    <div class="dial">
+      <div class="dial-top"><span class="dial-name">视觉冒险度</span><span class="dial-val" id="variance-val">7</span></div>
+      <input type="range" min="1" max="10" value="7" id="variance" oninput="document.getElementById('variance-val').textContent=this.value">
+    </div>
+    <div class="dial">
+      <div class="dial-top"><span class="dial-name">动效强度</span><span class="dial-val" id="motion-val">4</span></div>
+      <input type="range" min="1" max="10" value="4" id="motion" oninput="document.getElementById('motion-val').textContent=this.value">
+    </div>
+    <div class="dial">
+      <div class="dial-top"><span class="dial-name">信息密度</span><span class="dial-val" id="density-val">4</span></div>
+      <input type="range" min="1" max="10" value="4" id="density" oninput="document.getElementById('density-val').textContent=this.value">
+    </div>
+  </div>
+
+  <!-- Directions Grid -->
+  <div class="directions-grid">
+
+    <!-- A: Editorial List -->
+    <div class="dir-card" data-design-option="A" data-name="Editorial List">
+      <div class="dir-mockup dir-a">
+        <div class="hero">
+          <h2>Your Courses</h2>
+          <div class="stat">3 courses &middot; 2 in progress &middot; 1 completed</div>
+        </div>
+        <div class="section-label">[ in progress ]</div>
+        <div class="course-entry">
+          <div class="course-title">Fundamentals of Web Development</div>
+          <div class="course-desc">HTML, CSS, and JavaScript from first principles. Build real projects while learning the platform.</div>
+          <div class="course-meta">
+            <span>4 modules &middot; 12 lessons</span>
+            <span class="course-progress"><span class="bar" style="width:160px"><span class="bar-fill" style="width:67%"></span></span><span class="pct">67%</span></span>
+          </div>
+          <span class="course-action">Continue &rarr;</span>
+        </div>
+        <div class="course-entry">
+          <div class="course-title">React for Beginners</div>
+          <div class="course-desc">Components, state, and hooks. Build your first single-page application.</div>
+          <div class="course-meta">
+            <span>3 modules &middot; 9 lessons</span>
+            <span class="course-progress"><span class="bar" style="width:160px"><span class="bar-fill" style="width:33%"></span></span><span class="pct">33%</span></span>
+          </div>
+          <span class="course-action">Continue &rarr;</span>
+        </div>
+        <div class="section-label" style="margin-top:32px">[ completed ]</div>
+        <div class="course-entry">
+          <div class="course-title">Introduction to TypeScript</div>
+          <div class="course-desc">Type safety, interfaces, and generics. From JavaScript to TypeScript in two weeks.</div>
+          <div class="course-meta">
+            <span>5 modules &middot; 15 lessons</span>
+            <span class="course-progress"><span class="bar" style="width:160px"><span class="bar-fill" style="width:100%"></span></span><span class="pct">100%</span></span>
+          </div>
+          <span class="course-action">Review &rarr;</span>
+        </div>
+      </div>
+      <div class="dir-meta">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="dir-label">A. Editorial List</span>
+          <span class="dir-badge">推荐</span>
+        </div>
+        <span class="dir-sub">排版主导的单列课程列表，分段标签，进度内联</span>
+        <button class="pick-btn qmdp-pick-button" data-direction="A" data-name="Editorial List" onclick="pickDirection('A', 'Editorial List')">选择 A</button>
+      </div>
+    </div>
+
+    <!-- B: Magazine Grid -->
+    <div class="dir-card" data-design-option="B" data-name="Magazine Grid">
+      <div class="dir-mockup dir-b">
+        <div class="hero">
+          <div>
+            <h2>Continue<br>learning</h2>
+          </div>
+          <div style="text-align:right">
+            <div class="stat">3</div>
+            <div class="stat-label">Courses</div>
+          </div>
+        </div>
+        <div class="courses">
+          <div class="course-featured">
+            <span class="mk-tag">Continue</span>
+            <span class="title">Fundamentals of Web Development</span>
+            <span style="font-size:13px;color:var(--muted)">4 modules &middot; 12 lessons</span>
+            <div class="mk-progress-line" style="width:100%"><div class="mk-progress-fill" style="width:67%"></div></div>
+            <span style="font-size:12px;font-weight:600;color:var(--primary)">67% complete</span>
+          </div>
+          <div class="course-side">
+            <div class="course-compact">
+              <span class="title">React for Beginners</span>
+              <span class="meta">3 modules &middot; 9 lessons &middot; 33%</span>
+            </div>
+            <div class="course-compact">
+              <span class="title">Intro to TypeScript</span>
+              <span class="meta">5 modules &middot; 15 lessons &middot; 100%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dir-meta">
+        <span class="dir-label">B. Magazine Grid</span>
+        <span class="dir-sub">非对称网格，主课程突出，次要课程紧凑排列</span>
+        <button class="pick-btn qmdp-pick-button" data-direction="B" data-name="Magazine Grid" onclick="pickDirection('B', 'Magazine Grid')">选择 B</button>
+      </div>
+    </div>
+
+    <!-- C: Timeline -->
+    <div class="dir-card" data-design-option="C" data-name="Timeline">
+      <div class="dir-mockup dir-c">
+        <div class="hero">
+          <h2>Your learning<br>journey</h2>
+          <div class="sub">3 courses enrolled. 8 of 36 lessons completed.</div>
+        </div>
+        <div class="chapter">
+          <div class="chapter-num">01</div>
+          <div class="chapter-body">
+            <div class="chapter-title">Fundamentals of Web Development</div>
+            <div class="chapter-desc">HTML, CSS, and JavaScript from first principles. Build real projects while learning the platform.</div>
+            <div class="chapter-progress">
+              <span class="bar"><span class="bar-fill" style="width:67%"></span></span>
+              <span class="pct">67%</span>
+              <span style="font-size:13px;color:var(--primary);font-weight:500">Continue &rarr;</span>
+            </div>
+          </div>
+        </div>
+        <div class="chapter">
+          <div class="chapter-num">02</div>
+          <div class="chapter-body">
+            <div class="chapter-title">React for Beginners</div>
+            <div class="chapter-desc">Components, state, and hooks. Build your first single-page application.</div>
+            <div class="chapter-progress">
+              <span class="bar"><span class="bar-fill" style="width:33%"></span></span>
+              <span class="pct">33%</span>
+              <span style="font-size:13px;color:var(--primary);font-weight:500">Continue &rarr;</span>
+            </div>
+          </div>
+        </div>
+        <div class="chapter">
+          <div class="chapter-num">03</div>
+          <div class="chapter-body">
+            <div class="chapter-title">Introduction to TypeScript</div>
+            <div class="chapter-desc">Type safety, interfaces, and generics. From JavaScript to TypeScript in two weeks.</div>
+            <div class="chapter-progress">
+              <span class="bar"><span class="bar-fill" style="width:100%"></span></span>
+              <span class="pct">100%</span>
+              <span style="font-size:13px;color:var(--muted);font-weight:500">Review &rarr;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dir-meta">
+        <span class="dir-label">C. Timeline</span>
+        <span class="dir-sub">编号章节式学习旅程，进度作为章节标记</span>
+        <button class="pick-btn qmdp-pick-button" data-direction="C" data-name="Timeline" onclick="pickDirection('C', 'Timeline')">选择 C</button>
+      </div>
+    </div>
+
+    <!-- D: Minimalist -->
+    <div class="dir-card" data-design-option="D" data-name="Minimalist">
+      <div class="dir-mockup dir-d">
+        <div class="hero">
+          <span class="count">3</span>
+          <span class="count-label">courses &middot; 36 lessons &middot; 22% overall</span>
+        </div>
+        <div class="course-row">
+          <span class="idx">01</span>
+          <div class="info">
+            <span class="title">Fundamentals of Web Development</span>
+            <span class="desc">4 modules &middot; 12 lessons</span>
+          </div>
+          <span class="pct">67%</span>
+          <span class="arrow">&rarr;</span>
+        </div>
+        <div class="course-row">
+          <span class="idx">02</span>
+          <div class="info">
+            <span class="title">React for Beginners</span>
+            <span class="desc">3 modules &middot; 9 lessons</span>
+          </div>
+          <span class="pct">33%</span>
+          <span class="arrow">&rarr;</span>
+        </div>
+        <div class="course-row">
+          <span class="idx">03</span>
+          <div class="info">
+            <span class="title">Introduction to TypeScript</span>
+            <span class="desc">5 modules &middot; 15 lessons</span>
+          </div>
+          <span class="pct" style="color:var(--muted)">100%</span>
+          <span class="arrow">&rarr;</span>
+        </div>
+      </div>
+      <div class="dir-meta">
+        <span class="dir-label">D. Minimalist</span>
+        <span class="dir-sub">极简表格风格，等宽编号，克制到极致</span>
+        <button class="pick-btn qmdp-pick-button" data-direction="D" data-name="Minimalist" onclick="pickDirection('D', 'Minimalist')">选择 D</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Explanation area -->
+  <div style="margin-top:40px;padding:24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card)">
+    <h3 style="font-family:var(--font-heading);font-size:18px;font-weight:600;margin-bottom:12px">About These Directions</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--muted);line-height:1.6">
+      <div>
+        <strong style="color:var(--fg)">A. Editorial List</strong> <span style="color:var(--primary);font-size:11px;font-weight:600">推荐</span><br>
+        Foreman-inspired single-column layout. Courses as entries in a reading list. Bracketed section labels. Progress inline, not in cards. Typography carries the structure. Best embodies the "content as design" principle.
+      </div>
+      <div>
+        <strong style="color:var(--fg)">B. Magazine Grid</strong><br>
+        Asymmetric editorial grid. Featured course gets prominence (2/3 width), secondary courses compact. Large typographic numbers. Most visual variety; risks feeling busier than the other directions.
+      </div>
+      <div>
+        <strong style="color:var(--fg)">C. Timeline</strong><br>
+        Chapters with numbered markers. Learning as a journey metaphor. Each course is a chapter with progress as a chapter marker. Narrative feel. Works well for sequential learning.
+      </div>
+      <div>
+        <strong style="color:var(--fg)">D. Minimalist</strong><br>
+        Stripped to essentials. Monospace numbering, single-line entries, minimal chrome. Most radical departure from the current card grid. Strong personality but less warm; risks feeling cold for an education platform.
+      </div>
+    </div>
+    <p style="margin-top:16px;font-size:12px;color:var(--muted)">Recommendation: <strong style="color:var(--primary)">A — Editorial List</strong> best translates Foreman's compositional principles into an education context while maintaining warmth and usability. The single-column, typography-led structure creates a distinctive reading experience that doesn't feel like a SaaS template.</p>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <h3 id="modal-title">Confirm Selection</h3>
+    <div class="dir-name" id="modal-dir-name"></div>
+    <div class="dials-summary" id="modal-dials"></div>
+    <textarea id="modal-notes" placeholder="Adjustments or notes (optional) — e.g. &quot;A's layout + C's numbering&quot;, &quot;denser spacing&quot;"></textarea>
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="confirm" onclick="confirmSelection()">Confirm Selection</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedDirection = null;
+  let selectedName = null;
+
+  function pickDirection(dir, name) {
+    selectedDirection = dir;
+    selectedName = name;
+    const v = document.getElementById('variance').value;
+    const m = document.getElementById('motion').value;
+    const d = document.getElementById('density').value;
+    document.getElementById('modal-title').textContent = 'Direction ' + dir;
+    document.getElementById('modal-dir-name').textContent = name;
+    document.getElementById('modal-dials').innerHTML =
+      '视觉冒险度 ' + v + '/10 &middot; 动效强度 ' + m + '/10 &middot; 信息密度 ' + d + '/10';
+    document.getElementById('modal-notes').value = '';
+    document.getElementById('modal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+    selectedDirection = null;
+    selectedName = null;
+  }
+
+  async function confirmSelection() {
+    const notes = document.getElementById('modal-notes').value.trim();
+    const payload = {
+      id: selectedDirection,
+      label: 'Direction ' + selectedDirection,
+      name: selectedName,
+      notes: notes,
+      dials: {
+        variance: parseInt(document.getElementById('variance').value),
+        motion: parseInt(document.getElementById('motion').value),
+        density: parseInt(document.getElementById('density').value)
+      },
+      adjustments: notes
+    };
+    try {
+      await fetch('/api/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      document.getElementById('modal').classList.remove('active');
+      document.body.style.opacity = '0.7';
+    } catch (e) {
+      console.error('Selection POST failed:', e);
+      document.getElementById('modal').classList.remove('active');
+      document.body.style.opacity = '0.7';
+    }
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (e.key >= '1' && e.key <= '4') {
+      const dirs = ['A','B','C','D'];
+      const idx = parseInt(e.key) - 1;
+      pickDirection(dirs[idx], document.querySelectorAll('.dir-label')[idx].textContent.replace(/^[A-D]\.\s*/, ''));
+    }
+    if (e.key === 'Escape') closeModal();
+  });
+</script>
+
+</body>
+</html>

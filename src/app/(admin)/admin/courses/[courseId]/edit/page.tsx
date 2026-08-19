@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import EditCourseForm from "./edit-course-form";
 
 interface EditCoursePageProps {
@@ -39,17 +39,16 @@ export default async function EditCoursePage({ params }: EditCoursePageProps) {
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <BookOpen className="w-6 h-6 text-primary" />
-          Edit Course Metadata
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Edit Course
         </h1>
         <p className="text-muted-foreground text-sm">
-          Update the course title, slug path, description, and status.
+          Update the title, slug, description, and status.
         </p>
       </div>
 
       {/* Form Card */}
-      <div className="border border-border bg-card p-6 rounded-xl shadow-sm">
+      <div className="bg-card border border-border rounded-xl p-6 md:p-8">
         <EditCourseForm course={course as any} />
       </div>
     </div>

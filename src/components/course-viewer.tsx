@@ -2,6 +2,7 @@
 
 import { markLessonComplete } from "@/actions/student/progress";
 import PDFViewer from "@/components/pdf-viewer";
+import VideoPlayer from "@/components/video-player";
 import {
     Accordion,
     AccordionContent,
@@ -72,6 +73,11 @@ export default function CourseViewer({
   const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null;
   const nextLesson = currentIdx < allLessons.length - 1 ? allLessons[currentIdx + 1] : null;
 
+  // Current module context (label + position within module)
+  const currentModule = course.modules.find((m) => m.id === lesson.module_id);
+  const currentModuleLessons = currentModule?.lessons ?? [];
+  const lessonInModuleIdx = currentModuleLessons.findIndex((l) => l.id === lessonId);
+
   // Sync completion states
   useEffect(() => {
     setCourseProgress(course.progress_pct);
@@ -110,6 +116,11 @@ export default function CourseViewer({
     });
   }
 
+  // Current lesson progress (for resume tracking)
+  const currentLessonProgress = course.modules
+    .flatMap((m) => m.lessons)
+    .find((l) => l.id === lessonId)?.progress;
+
   // Helper to render content based on content_type
   function renderContent() {
     switch (lesson.content_type) {
@@ -125,22 +136,25 @@ export default function CourseViewer({
         const videoSrc = lesson.signed_url || lesson.content;
         if (!videoSrc) {
           return (
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
               <PlayCircle className="w-12 h-12 text-muted-foreground/50" />
               <span>Video content is not available.</span>
             </div>
           );
         }
         return (
-          <div className="aspect-video w-full rounded-xl overflow-hidden border border-border bg-black shadow-sm">
-            <video src={videoSrc} controls className="w-full h-full object-contain" />
-          </div>
+          <VideoPlayer
+            src={videoSrc}
+            title={lesson.title}
+            lessonId={lessonId}
+            initialPosition={currentLessonProgress?.last_position ?? 0}
+          />
         );
       case "pdf":
         const pdfUrl = lesson.signed_url || lesson.content;
         if (!pdfUrl) {
           return (
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
               <FileText className="w-12 h-12 text-muted-foreground/50" />
               <span>PDF document is not available.</span>
             </div>
@@ -151,33 +165,33 @@ export default function CourseViewer({
         const imgUrl = lesson.signed_url || lesson.content;
         if (!imgUrl) {
           return (
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
               <ImageIcon className="w-12 h-12 text-muted-foreground/50" />
               <span>Image is not available.</span>
             </div>
           );
         }
         return (
-          <div className="border border-border rounded-xl overflow-hidden bg-card flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl overflow-hidden flex items-center justify-center p-4">
             <img src={imgUrl} alt={lesson.title} className="max-w-full max-h-[600px] object-contain rounded-lg" />
           </div>
         );
       case "link":
         if (!lesson.content) {
           return (
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
               <ExternalLink className="w-12 h-12 text-muted-foreground/50" />
               <span>Link URL is not available.</span>
             </div>
           );
         }
         return (
-          <div className="border border-border rounded-xl bg-card p-12 text-center space-y-6 max-w-md mx-auto shadow-sm">
+          <div className="bg-card border border-border rounded-xl p-12 text-center space-y-6 max-w-md mx-auto">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
               <ExternalLink className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="font-bold text-lg text-foreground">External Learning Resource</h3>
+              <h3 className="font-semibold text-lg text-foreground">External Learning Resource</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 This lesson requires viewing material on an external website. Click below to open.
               </p>
@@ -194,19 +208,19 @@ export default function CourseViewer({
         const fileUrl = lesson.signed_url || lesson.content;
         if (!fileUrl) {
           return (
-            <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
               <Download className="w-12 h-12 text-muted-foreground/50" />
               <span>Attachment file is not available.</span>
             </div>
           );
         }
         return (
-          <div className="border border-border rounded-xl bg-card p-12 text-center space-y-6 max-w-md mx-auto shadow-sm">
+          <div className="bg-card border border-border rounded-xl p-12 text-center space-y-6 max-w-md mx-auto">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
               <Download className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="font-bold text-lg text-foreground">Download Attachment</h3>
+              <h3 className="font-semibold text-lg text-foreground">Download Attachment</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Click below to download the course materials provided for this lesson.
               </p>
@@ -221,7 +235,7 @@ export default function CourseViewer({
         );
       default:
         return (
-          <div className="p-8 border rounded-xl bg-card text-center text-muted-foreground flex flex-col items-center gap-2">
+          <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
             <HelpCircle className="w-12 h-12 text-muted-foreground/50" />
             <span>Unsupported content type.</span>
           </div>
@@ -231,18 +245,27 @@ export default function CourseViewer({
 
   // Sidebar component for reuse
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-card border-r border-border text-foreground">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
       {/* Sidebar header */}
-      <div className="p-5 border-b border-border space-y-4">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Dashboard
-        </Link>
+      <div className="p-5 border-b border-sidebar-border space-y-4">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Dashboard
+          </Link>
+          <span className="text-xs text-sidebar-border">·</span>
+          <Link
+            href={`/course/${courseId}`}
+            className="text-xs text-muted-foreground hover:text-foreground font-medium"
+          >
+            Course
+          </Link>
+        </div>
         <div>
-          <h2 className="font-bold text-lg leading-tight tracking-tight text-foreground line-clamp-2">
+          <h2 className="text-lg font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
             {course.title}
           </h2>
         </div>
@@ -251,7 +274,7 @@ export default function CourseViewer({
             <span>Course Progress</span>
             <span>{courseProgress}%</span>
           </div>
-          <Progress value={courseProgress} className="h-2" />
+          <Progress value={courseProgress} />
         </div>
       </div>
 
@@ -260,13 +283,13 @@ export default function CourseViewer({
         <Accordion
           type="multiple"
           defaultValue={(course.modules as Array<{ id: string }>).map((m) => m.id)}
-          className="space-y-2"
+          className="space-y-0.5"
         >
           {course.modules.map((mod: any) => (
             <AccordionItem
               key={mod.id}
               value={mod.id}
-              className="border border-border rounded-lg px-2 overflow-hidden bg-muted/10"
+              className="border-0 rounded-md overflow-hidden"
             >
               <AccordionTrigger className="hover:no-underline py-3 px-2 font-semibold text-sm text-foreground text-left leading-relaxed">
                 <div className="space-y-1">
@@ -276,7 +299,7 @@ export default function CourseViewer({
                   </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="pt-1 pb-3 space-y-1">
+              <AccordionContent className="pt-1 pb-3 space-y-1 px-2">
                 {mod.lessons.map((les: any) => {
                   const isCurrent = les.id === lessonId;
                   const isCompleted = completedLessons.has(les.id);
@@ -285,10 +308,10 @@ export default function CourseViewer({
                     <Link
                       key={les.id}
                       href={`/course/${courseId}/lesson/${les.id}`}
-                      className={`flex items-start gap-2.5 p-2 rounded-md text-sm font-medium transition-all group ${
+                      className={`flex items-start gap-2.5 p-2 rounded-md text-sm font-medium ${
                         isCurrent
                           ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted/80 text-foreground"
+                          : "hover:bg-sidebar-accent text-foreground"
                       }`}
                     >
                       <div className="mt-0.5 shrink-0">
@@ -301,7 +324,7 @@ export default function CourseViewer({
                             }`}
                           />
                         ) : (
-                          <Circle className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                          <Circle className="w-4 h-4 opacity-40" />
                         )}
                       </div>
                       <div className="text-xs leading-relaxed flex-1">
@@ -320,7 +343,7 @@ export default function CourseViewer({
   );
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-slate-50 dark:bg-background">
+    <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-background">
       {/* Desktop Sidebar (Left side, fixed width) */}
       <aside className="hidden md:block w-80 shrink-0 h-[calc(100vh-4rem)] sticky top-16">
         <SidebarContent />
@@ -329,21 +352,23 @@ export default function CourseViewer({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* Course viewer top-bar */}
-        <div className="sticky top-16 md:top-0 z-30 bg-card border-b border-border px-6 py-4 flex items-center justify-between gap-4 shadow-sm">
+        <div className="sticky top-16 md:top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Mobile Sidebar Trigger (Menu icon) */}
             <Sheet>
-              <SheetTrigger>
-                <Button variant="outline" size="icon" className="md:hidden shrink-0">
-                  <Menu className="w-4 h-4" />
-                </Button>
-              </SheetTrigger>
+              <SheetTrigger
+                render={
+                  <Button variant="outline" size="icon" className="md:hidden shrink-0">
+                    <Menu className="w-4 h-4" />
+                  </Button>
+                }
+              />
               <SheetContent side="left" className="p-0 w-80">
                 <SidebarContent />
               </SheetContent>
             </Sheet>
 
-            <span className="font-bold text-foreground truncate max-w-[200px] sm:max-w-sm md:max-w-md lg:max-w-xl">
+            <span className="font-semibold text-foreground truncate max-w-[200px] sm:max-w-sm md:max-w-md lg:max-w-xl">
               {lesson.title}
             </span>
           </div>
@@ -382,8 +407,23 @@ export default function CourseViewer({
 
         {/* Content canvas */}
         <div className="flex-1 p-6 md:p-10 max-w-4xl w-full mx-auto space-y-8">
-          <div className="space-y-4">
-            <h1 className="text-3xl font-extrabold text-foreground tracking-tight leading-tight">
+          <div className="space-y-3">
+            {/* Module / lesson context */}
+            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-wide">
+              {currentModule ? (
+                <>
+                  <span>{currentModule.title}</span>
+                  <span className="opacity-50">/</span>
+                </>
+              ) : null}
+              <span>
+                Lesson {Math.min(lessonInModuleIdx + 1, Math.max(currentModuleLessons.length, 1))}
+                {currentModuleLessons.length > 1
+                  ? ` of ${currentModuleLessons.length}`
+                  : ""}
+              </span>
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground text-balance">
               {lesson.title}
             </h1>
             {lesson.description && (
@@ -414,7 +454,7 @@ export default function CourseViewer({
             <Button
               onClick={handleMarkComplete}
               disabled={completedLessons.has(lessonId) || isPending}
-              className="flex items-center gap-2 h-11 px-6 shadow-sm font-semibold"
+              className="flex items-center gap-2 h-11 px-6 font-semibold"
             >
               {isPending ? (
                 <span>Saving...</span>

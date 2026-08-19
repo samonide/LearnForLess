@@ -293,7 +293,7 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
               <p className="font-semibold text-foreground">Next Steps:</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1">
                 <li>Share this token with students via email or portal</li>
-                <li>Students enter it on the <code className="bg-muted px-1.5 py-0.5 rounded text-xs">/access</code> page</li>
+                <li>Students redeeming it will gain access to the assigned courses</li>
                 <li>They'll gain instant access to the assigned courses</li>
               </ul>
             </div>

@@ -32,7 +32,7 @@ export async function getUsers(page = 1, pageSize = 20) {
       .from("profiles")
       .select(
         `
-        id, email, display_name, role, created_at, updated_at,
+        id, email, display_name, username, role, created_at, updated_at,
         user_courses(
           course_id,
           created_at,
@@ -61,11 +61,10 @@ export async function grantCourseAccess(
   input: GrantAccessInput
 ): Promise<ActionResult<void>> {
   try {
-    const { user } = await getAdminUser();
+    await getAdminUser();
     const adminClient = createAdminClient();
 
     const result = await adminClient.rpc("grant_course_access_admin", {
-      p_admin_id: user.id,
       p_user_id: input.user_id,
       p_course_id: input.course_id,
       p_expires_at: input.expires_at ?? null,
