@@ -249,7 +249,7 @@ describe("executeImport error handling", () => {
     // Clean up any pre-existing imp-err user from a previous run
     const email = "test-imp-err@learnforless.test";
     const { data: existingUsers } = await svc.auth.admin.listUsers();
-    const existing = existingUsers?.users?.find((u: { email: string }) => u.email === email);
+    const existing = existingUsers?.users?.find((u) => u.email === email);
     if (existing) {
       await svc.auth.admin.deleteUser(existing.id);
       await svc.from("profiles").delete().eq("id", existing.id);

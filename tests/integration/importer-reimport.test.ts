@@ -69,7 +69,7 @@ describe("incremental re-import (integration)", () => {
     // Clean up any pre-existing user from a previous run
     const email = "test-reinc-admin@learnforless.test";
     const { data: existingUsers } = await svc.auth.admin.listUsers();
-    const existing = existingUsers?.users?.find((u: { email: string }) => u.email === email);
+    const existing = existingUsers?.users?.find((u) => u.email === email);
     if (existing) {
       await svc.from("profiles").delete().eq("id", existing.id);
       await svc.auth.admin.deleteUser(existing.id);
@@ -325,7 +325,7 @@ describe("replacement re-import (integration)", () => {
     // Clean up any pre-existing user from a previous run
     const email = "test-rep-admin@learnforless.test";
     const { data: existingUsers } = await svc.auth.admin.listUsers();
-    const existing = existingUsers?.users?.find((u: { email: string }) => u.email === email);
+    const existing = existingUsers?.users?.find((u) => u.email === email);
     if (existing) {
       await svc.from("profiles").delete().eq("id", existing.id);
       await svc.auth.admin.deleteUser(existing.id);
