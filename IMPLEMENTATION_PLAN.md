@@ -11,7 +11,14 @@ Living roadmap. Read with `PROJECT_CONTEXT.md` at session start.
 - Phase 3 — UI/UX redesign (zen, minimal, calm, premium; charcoal dark) COMPLETE (2026-08-19).
 - Phase 4 — CMS Functional Completion COMPLETE (2026-08-19).
 - Phase 5 — Security Foundation COMPLETE (2026-08-19).
-- 65 integration tests (7 authz-security + 19 auth-flow + 32 CMS CRUD + 6 token-generation + 1 admin grant) — all pass.
+- Phase 6a — Student UI Fixes COMPLETE (2026-08-20).
+- UI workstream (UI-A..UI-E) COMPLETE (2026-08-20).
+- Phase DBI-1 — DB Course Importer foundation COMPLETE (2026-08-21): migration 007 + parser foundation only.
+- Phase DBI-2 — Server-side import action COMPLETE (2026-08-21): `importCourse()` admin-only server action + `executeImport()` testable core. 77 tests pass (65 integration + 4 parser unit + 4 import integration + 4 resolve-source).
+- Phase DBI-3 — Media / Source Resolution COMPLETE (2026-08-21): B2 presigned URL generation via `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`. `getLessonContent()` resolves B2 sources at view time, returning via existing `signed_url` field. No viewer/schema changes. 10 focused tests (7 unit + 3 integration) pass.
+- Phase DBI-4 — Re-Import Engine COMPLETE (2026-08-21): `executeImport()` incremental + replacement modes. Incremental matches modules by `source_chapter_num`, lessons by `source_fingerprint`, adds missing only. Replacement preserves course row/access/manual data, recreates imported modules/lessons. Manual rollback in both. `importCourse()` accepts `mode` form field. 13 new integration tests added (6 incremental + 7 replacement); full suite deferred until DBI-5.
+- Phase DBI-5 — Auto Course Importer UI COMPLETE (2026-08-22): admin sidebar item, `/admin/import` page with upload/inspection/import workflow, `parseImport()` server action, incremental vs replacement modes with confirmation dialog.
+- `tsc --noEmit` passes. `npm run build` passes.
 - 11 Playwright E2E tests (4 spec files) — all pass.
 - `tsc --noEmit` passes. `npm run build` passes.
 
@@ -359,15 +366,84 @@ Tasks:
 Dependencies: Phase 6 (deployment), Phase 7 (product features stable).
 Required before publishing: NO. Recommended before significant user adoption.
 
-### Phase 9 — Database Import (LAST, DEFERRED)
+### Phase DBI-1 — DB Course Importer Foundation (COMPLETE, 2026-08-21)
 
-Purpose: Import existing course data from a .db file.
+Purpose: Database/import foundation for importing course data from Apna College SQLite `.db` files.
 
-- **Blocked** until: real source `.db` schema available, media-source architecture finalized, security/storage requirements understood.
-- Do NOT implement speculative import architecture. Do not invent columns, mappings, media types, encryption mechanisms, or import behavior without the real source data.
-- When unblocked: admin uploads `.db` file, inspect safely, map to course data model, prevent duplicates, preserve ordering, validate before commit, atomic import.
+**Completed items:**
+- Migration 007 (`supabase/migrations/007_course_imports.sql`): additive-only nullable columns on courses (source_id, source_type), modules (source_chapter_num), lessons (source_fingerprint, external_source, external_key, external_bh_url, file_size, source_stamped) + course_imports bookkeeping table with admin-only RLS. All indexes/constraints.
+- `src/lib/importer/parse.ts`: SQLite parser using sql.js. Validates tables, reads courses/videos/pdfs/code_files, normalizes chapter_num (trailing dots stripped, numeric sort), groups by chapter_name, orders lessons (videos → pdfs → code_files), generates stable FNV-1a fingerprints, collects warnings. No DB writes.
+- `src/types/index.ts`: Importer types (SourceContentType, ImportWarning, ParsedLesson, ParsedModule, ParsedCourse, ParseResult).
+- `sql.js` v1.14.2 dependency added.
+- `tests/unit/importer-parse.test.ts`: 4 tests — parses real DBTest/apna_videos.db, verifies chapter order, fingerprint+metadata, known row counts (2 videos, 15 PDFs, 3 code files). All pass.
 
-Required before publishing: NO.
+**Verification:** `tsc --noEmit` passes. `npm run build` passes. 4 parser unit tests pass.
+
+**Not implemented (next):** import UI, sidebar entry, B2 integration, actual course creation, incremental/replacement logic, student viewer changes, import server actions, Postgres import RPC.
+
+### Phase DBI-2 — Server-Side Import Action (COMPLETE, 2026-08-21)
+
+Purpose: Implement the admin-only server action that imports a parsed `.db` course into the database.
+
+**Completed items:**
+- `src/actions/admin/import-course.ts`: `importCourse()` server action (FormData, admin-only auth via `getAdminUser()`) + `executeImport()` testable core (SupabaseClient, adminUserId, buffer, fileName). Uses `parseDb()` from DBI-1.
+- Duplicate source course detection: checks `(source_type, source_id)` pair, returns "already imported" error.
+- Rollback: tracks `createdCourseId`, deletes course on failure (FK cascade handles modules/lessons/course_imports).
+- Records `course_imports` row + `audit_logs` entry on success.
+- `src/types/index.ts`: Fixed malformed `ParseResult` discriminated union, added `ImportResult` type.
+- `tests/integration/importer-import.test.ts`: 4 tests — full lifecycle import, duplicate rejection, parser-output count match, empty-buffer error. All guard-skipped when migration 007 not applied.
+
+**Requires migration 007 applied to hosted Supabase** (via Dashboard SQL Editor, per project convention).
+
+**Verification:** `tsc --noEmit` passes. `npm test` (73 tests) all pass. `npm run build` passes.
+
+**Not implemented (next):** DBI-3 completed B2 resolution. Remaining: import UI/sidebar entry, incremental/replace logic.
+
+### Phase DBI-3 — Media / Source Resolution (COMPLETE, 2026-08-21)
+
+Purpose: Resolve B2-sourced media at view time so imported PDFs and code files are accessible to students.
+
+**Completed items:**
+- `src/lib/importer/resolve-source.ts`: `generateB2PresignedUrl(b2Key, opts?)` using `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`. Lazy singleton `S3Client` with `forcePathStyle: true`. Input validation: non-empty, no whitespace, no query params. Default expiry 3600s. Returns `null` on missing creds or invalid key — viewer degrades to "not available".
+- `src/actions/student/courses.ts` `getLessonContent()`: query now includes `external_source`, `external_key`, `external_bh_url`. After Supabase Storage signing, resolves B2 sources via `generateB2PresignedUrl()`, falling back to `external_bh_url`.
+- `src/types/index.ts`: `Lesson` type gained 6 migration-007 fields (`source_fingerprint`, `external_source`, `external_key`, `external_bh_url`, `file_size`, `source_stamped`).
+- `src/components/course-builder.tsx`: inline lesson object updated with 6 new nullable fields.
+- `.env.local` + `.env.local.example`: B2 env vars (`B2_ENDPOINT`, `B2_BUCKET`, `B2_KEY_ID`, `B2_APP_KEY`, `B2_REGION`).
+- `tests/unit/importer-resolve-source.test.ts`: 7 tests (SigV4 structure, empty/whitespace/query-param keys, missing creds, custom expiry, URL encoding). All pass.
+- `tests/integration/importer-resolve-source.test.ts`: 3 tests (real B2 presigned URL generation, invalid key handling, source metadata preservation per content type). Guard-skipped when B2 creds absent.
+
+**No changes to:** viewers, `parse.ts`, `import-course.ts`, DB schema, `npm run build`.
+
+**Verification:** `tsc --noEmit` passes. `npm run build` passes. 10 resolve-source tests pass (7 unit + 3 integration).
+
+**Not implemented (next):** import UI/sidebar entry.
+
+### Phase DBI-4 — Re-Import Engine (COMPLETE, 2026-08-21)
+
+Purpose: Extend `executeImport()` with incremental and replacement re-import modes for existing source courses.
+
+**Completed items:**
+- `src/actions/admin/import-course.ts`: `executeImport()` routes by mode when existing source course found. `doIncrementalImport()` matches modules by `source_chapter_num`, lessons by `source_fingerprint`, adds only missing, never deletes. `doReplacementImport()` preserves course row/ID/access/enrollments/manual data, deletes obsolete imported modules/lessons, recreates from source. Both modes with manual rollback. Existing "new course" behavior unchanged.
+- `src/types/index.ts`: `ImportResult` extended with `mode`, `modulesAdded`, `modulesRemoved`, `lessonsAdded`, `lessonsRemoved`.
+- `importCourse()` server action accepts optional `mode` form field.
+- `tests/integration/importer-import.test.ts`: existing "rejects duplicate" test updated to expect incremental mode with zero additions.
+- `tests/integration/importer-reimport.test.ts`: 13 new tests (6 incremental + 7 replacement) covering no-changes reimport, deleted module/lesson readd, manual data preservation, no-duplicates, course row preservation, enrollment preservation, course_imports records.
+- Security: never exposes secrets, service-role credentials; server-side enforcement; manual data (NULL fingerprints) never touched.
+
+**Verification:** `tsc --noEmit` passes. `npm run build` passes.
+
+### Phase DBI-5 — Auto Course Importer UI (COMPLETE, 2026-08-22)
+
+Purpose: Admin UI for importing courses from SQLite `.db` files. Reuses DBI-2/DBI-4 server actions.
+
+**Completed items:**
+- `src/actions/admin/import-course.ts`: `parseImport()` server action — admin-authenticated, calls `parseDb()`, returns `ParseResultForClient` (no DB writes, no revalidation).
+- `src/components/admin-sidebar-nav.tsx`: "Auto Course Importer" nav item with `Database` icon, `href: "/admin/import"`.
+- `src/app/(admin)/admin/import/page.tsx`: full state-machine UI — empty → parsing → inspection → importing → success/error. Dropzone (drag + click), course preview (source ID, type, module count, lesson counts by type, module list), warnings display, incremental/replacement import buttons, AlertDialog for replacement confirmation, success summary with course builder link.
+
+**Constraints:** Reuses `importCourse()` + `parseDb()`. No schema/DB changes. No new dependencies. No viewer changes.
+
+**Verification:** `tsc --noEmit` passes. `npm run build` passes (13 static + all dynamic routes generated).
 
 ## Deferred / Future (no assigned phase)
 

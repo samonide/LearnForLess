@@ -52,7 +52,7 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 
 ## Media architecture (current, verified 2026-08-19)
 
-External URLs are the primary media source. Video = third-party M3U8/HLS URLs. PDF/downloadable/code = direct Backblaze URLs. GoFile = backup for PDF/code. All stored in `lessons.content`. `lessons.storage_path` is an admin-upload path for Supabase Storage — secondary source. Client-side: `signed_url || content` (signed URL from storage takes precedence when present). No provider names in code — only in DB data. Course-builder lesson modal enforces single media source via "External URL" / "Upload File" toggle. Video playback: Video.js with @videojs/http-streaming for HLS, fallback for MP4. Dark theme. Signed URLs from Supabase Storage expire after 1 hour (no refresh logic yet).
+External URLs are the primary media source. Video = third-party M3U8/HLS URLs. PDF/downloadable/code = direct Backblaze URLs. GoFile = backup for PDF/code. All stored in `lessons.content`. `lessons.storage_path` is an admin-upload path for Supabase Storage — secondary source. Client-side: `signed_url || content` (signed URL from storage takes precedence when present). No provider names in code — only in DB data. Course-builder lesson modal enforces single media source via "External URL" / "Upload File" toggle. Video playback: Video.js with @videojs/http-streaming for HLS, fallback for MP4. Dark theme. Signed URLs from Supabase Storage expire after 1 hour (no refresh logic yet). Imported PDF/code files: B2 presigned URL generated at view time via `generateB2PresignedUrl()` in `src/lib/importer/resolve-source.ts`, returned through `signed_url` field from `getLessonContent()`. No viewer changes needed.
 
 ## Database / storage
 
@@ -116,6 +116,11 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 - No test documentation.
 - Phase 7 (Product Features) and Phase 8 (Production Hardening) not started.
 - Phase 9 (Database Import) deferred — blocked until real source `.db` schema available. Do not start.
+- Phase DBI-1 — DB Course Importer foundation COMPLETE (2026-08-21): migration 007, parser foundation in `src/lib/importer/parse.ts`, importer types, sql.js dependency. 4 parser unit tests pass.
+- Phase DBI-2 — Server-side import action COMPLETE (2026-08-21): `importCourse()` admin-only server action + `executeImport()` testable core in `src/actions/admin/import-course.ts`. 4 integration tests (guard-skipped when migration 007 not applied). 73 tests total pass.
+- Phase DBI-3 — Media/source resolution COMPLETE (2026-08-21): B2 presigned URL generation for imported PDF/code files; `getLessonContent()` resolves via `signed_url` with Buzzheavier fallback; no viewer/schema changes. 10 resolve-source tests pass (7 unit + 3 integration). `tsc --noEmit` + `npm run build` pass.
+- Phase DBI-4 — Re-Import Engine COMPLETE (2026-08-21): `executeImport()` incremental (modules by `source_chapter_num`, lessons by `source_fingerprint`, add missing only) + replacement (preserves course row/manual data, recreates imported modules/lessons) modes. Manual rollback both. `importCourse()` accepts `mode`. 13 new integration tests (6+7). `tsc --noEmit` + `npm run build` pass. Full test suite deferred until DBI-5.
+- Phase DBI-5 — Auto Course Importer UI COMPLETE (2026-08-22): Admin sidebar nav item + `/admin/import` page. `parseImport()` server action (read-only, no DB writes). Upload/inspection/import workflow: dropzone, course preview (source ID/type, module/lesson counts by type, module list, warnings), incremental vs replacement import with AlertDialog confirmation, success summary with course builder link. Reuses DBI-2/DBI-4 actions. `tsc --noEmit` + `npm run build` pass.
 
 ## Conventions
 

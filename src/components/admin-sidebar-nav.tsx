@@ -9,6 +9,7 @@ import {
   Users,
   UserCog,
   Settings,
+  Database,
 } from "lucide-react";
 
 const navItems = [
@@ -16,6 +17,7 @@ const navItems = [
   { href: "/admin/courses", label: "Courses", icon: BookMarked, exact: false },
   { href: "/admin/tokens", label: "Access Tokens", icon: Key, exact: false },
   { href: "/admin/users", label: "User Directory", icon: Users, exact: false },
+  { href: "/admin/import", label: "Auto Course Importer", icon: Database, exact: true },
   { href: "/admin/admins", label: "Admin Accounts", icon: UserCog, exact: false },
   { href: "/admin/settings", label: "Settings", icon: Settings, exact: true },
 ];

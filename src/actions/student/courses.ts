@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { generateB2PresignedUrl } from "@/lib/importer/resolve-source";
 import type { CourseViewerData, ModuleWithLessonsAndProgress } from "@/types";
 
 async function getStudentUser() {
@@ -160,10 +161,16 @@ export async function getCourseForViewer(courseId: string): Promise<{
             return {
               ...l,
               module_id: m.id,
-              created_at: "",
-              updated_at: "",
               content: null,
               storage_path: null,
+              source_fingerprint: null,
+              external_source: null,
+              external_key: null,
+              external_bh_url: null,
+              file_size: null,
+              source_stamped: null,
+              created_at: "",
+              updated_at: "",
               progress: progress ?? null,
               lesson_number: lessonNumber,
             };
@@ -229,6 +236,7 @@ export async function getLessonContent(lessonId: string): Promise<{
       .select(
         `
         id, title, description, content_type, content, storage_path,
+        external_source, external_key, external_bh_url,
         module_id, modules(course_id, courses(status))
       `
       )
@@ -260,6 +268,16 @@ export async function getLessonContent(lessonId: string): Promise<{
         .from("course-materials")
         .createSignedUrl(lesson.storage_path, 3600); // 1 hour
       signedUrl = signedData?.signedUrl;
+    }
+
+    // Resolve external B2 sources (imported PDFs/code files)
+    if (!signedUrl && lesson.external_source === "b2" && lesson.external_key) {
+      const b2Result = await generateB2PresignedUrl(lesson.external_key);
+      if (b2Result) {
+        signedUrl = b2Result.url;
+      } else {
+        signedUrl = lesson.external_bh_url ?? undefined;
+      }
     }
 
     return {

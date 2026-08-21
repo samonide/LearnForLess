@@ -60,6 +60,12 @@ export type Lesson = {
   storage_path: string | null;
   sort_order: number;
   is_preview: boolean;
+  source_fingerprint: string | null;
+  external_source: string | null;
+  external_key: string | null;
+  external_bh_url: string | null;
+  file_size: number | null;
+  source_stamped: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -316,4 +322,83 @@ export type PaginationState = {
   page: number;
   pageSize: number;
   total: number;
+};
+
+// ============================================================
+// IMPORTER TYPES
+// ============================================================
+
+export type SourceContentType = "video" | "pdf" | "code_file";
+
+export type ImportWarningLevel = "info" | "warning" | "error";
+
+export type ImportWarning = {
+  level: ImportWarningLevel;
+  message: string;
+  source_type: SourceContentType;
+  source_key: string | null;
+};
+
+export type ParsedLesson = {
+  title: string;
+  description: string | null;
+  content_type: ContentType;
+  sort_order: number;
+  is_preview: boolean;
+  /** Source material fingerprint for dedup: SHA-256 hex of (content_type, chapter_name, unique_key) */
+  source_fingerprint: string;
+  external_source: string | null;
+  external_key: string | null;
+  external_bh_url: string | null;
+  file_size: number | null;
+  source_stamped: boolean | null;
+  /** The primary content URL (stream_url, or presigned URL at view time) */
+  content: string | null;
+  /** Raw source row for reference */
+  source_row: Record<string, unknown>;
+};
+
+export type ParsedModule = {
+  title: string;
+  description: string | null;
+  sort_order: number;
+  source_chapter_num: string;
+  lessons: ParsedLesson[];
+};
+
+export type ParsedCourse = {
+  source_id: string;
+  source_type: string;
+  title: string;
+  description: string | null;
+  modules: ParsedModule[];
+};
+
+export type ImportResult = {
+  mode: "incremental" | "replacement";
+  courseId: string;
+  courseTitle: string;
+  sourceCourseId: string;
+  sourceType: string;
+  modulesCreated: number;
+  /** Modules added this run. 0 when no new modules were created. */
+  modulesAdded: number;
+  /** Modules removed this run. 0 unless mode is "replacement". */
+  modulesRemoved: number;
+  /** Lessons added this run. */
+  lessonsAdded: number;
+  /** Lessons removed this run. 0 unless mode is "replacement". */
+  lessonsRemoved: number;
+  lessonsByType: Record<string, number>;
+  totalLessons: number;
+  warnings: ImportWarning[];
+};
+
+export type ParseResult = {
+  success: true;
+  course: ParsedCourse;
+  warnings: ImportWarning[];
+} | {
+  success: false;
+  error: string;
 };

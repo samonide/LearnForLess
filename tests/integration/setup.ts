@@ -220,6 +220,7 @@ export async function cleanupTestData(
     await svc.from("modules").delete().eq("id", mid);
   }
   for (const cid of courseIds) {
+    await svc.from("course_imports").delete().eq("course_id", cid);
     await svc.from("token_courses").delete().eq("course_id", cid);
     await svc.from("user_courses").delete().eq("course_id", cid);
     await svc.from("modules").delete().eq("course_id", cid);

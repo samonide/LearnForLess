@@ -12,6 +12,9 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // Integration tests share a Supabase project — sequential execution
+    // prevents cross-file data interference from parallel test files.
+    fileParallelism: false,
   },
   resolve: {
     alias: {
