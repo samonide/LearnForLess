@@ -31,7 +31,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="text-center space-y-4 max-w-md bg-card border border-border rounded-xl p-8">
-          <div className="w-12 h-12 rounded-xl bg-destructive/10 ring-1 ring-destructive/20 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-destructive/10 border border-border flex items-center justify-center mx-auto">
             <AlertTriangle className="w-6 h-6 text-destructive" />
           </div>
           <h2 className="text-xl font-semibold text-foreground">Content Unavailable</h2>

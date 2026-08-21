@@ -93,10 +93,12 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'no_courses_assigned');
   END IF;
 
+  -- Token name is an admin note, never the student's account name.
+  -- Display name is only set on first claim when the user has none.
   INSERT INTO public.profiles (id, email, display_name, role)
-  VALUES (p_user_id, NULL, v_token.name, 'student')
+  VALUES (p_user_id, NULL, NULL, 'student')
   ON CONFLICT (id) DO UPDATE
-  SET display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name),
+  SET display_name = COALESCE(public.profiles.display_name, EXCLUDED.display_name),
       email = NULL,
       role = 'student';
 

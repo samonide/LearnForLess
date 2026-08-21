@@ -45,14 +45,6 @@ export async function generateSecureToken(): Promise<TokenHashResult> {
   return { rawToken, tokenHash, tokenHint };
 }
 
-export function buildStudentTokenLoginEmail(tokenId: string): string {
-  return `student-${tokenId.replace(/-/g, "")}@learnforless.local`;
-}
-
-/**
- * Derives the synthetic Supabase Auth email for a username.
- * Must match the logic in auth.ts server actions.
- */
 export function buildStudentLoginEmail(username: string): string {
   const normalized = username.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "");
   return `student-${normalized}@learnforless.local`;

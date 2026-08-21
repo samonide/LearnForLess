@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Literata } from "next/font/google";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getSiteSettings } from "@/lib/site-settings";
 import "./globals.css";
 
 const fontSans = Geist({
@@ -19,14 +20,27 @@ const fontSerif = Literata({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "LearnForLess – Online Course Platform",
-    template: "%s | LearnForLess",
-  },
-  description:
-    "Access your courses with a secure token. LearnForLess is a professional online learning platform.",
-  robots: { index: false, follow: false }, // Private platform
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  const siteName = settings.site_name;
+
+  return {
+    title: {
+      default: `${siteName} – Online Course Platform`,
+      template: `%s | ${siteName}`,
+    },
+    description: `Access your courses with a secure token. ${siteName} is a professional online learning platform.`,
+    icons: {
+      icon: "/icon.svg",
+      shortcut: "/favicon.ico",
+    },
+    robots: { index: false, follow: false }, // Private platform
+  };
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -43,9 +57,24 @@ export default function RootLayout({
           {children}
           <Toaster
             position="top-right"
-            richColors
             closeButton
             duration={4000}
+            toastOptions={{
+              style: {
+                background: "var(--card)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-lg)",
+                fontSize: "0.875rem",
+                boxShadow: "var(--shadow-elevated)",
+              },
+            }}
+            icons={{
+              success: undefined,
+              info: undefined,
+              warning: undefined,
+              error: undefined,
+            }}
           />
         </TooltipProvider>
       </body>

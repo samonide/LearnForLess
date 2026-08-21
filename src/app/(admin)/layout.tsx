@@ -1,22 +1,17 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import {
   BookOpen,
-  LayoutDashboard,
-  Key,
-  Users,
-  Settings,
   LogOut,
-  Bell,
-  Search,
-  User as UserIcon,
-  BookMarked,
   ShieldCheck,
 } from "lucide-react";
 import { logoutStudent } from "@/actions/student/auth";
 import { Button } from "@/components/ui/button";
+import AdminSidebarNav from "@/components/admin-sidebar-nav";
+import AdminMobileSidebar from "@/components/admin-mobile-sidebar";
+import Logo from "@/components/logo";
+import { getSiteSettings } from "@/lib/site-settings";
 
 export default async function AdminLayout({
   children,
@@ -44,64 +39,26 @@ export default async function AdminLayout({
   }
 
   const displayName = profile.display_name || user.email || "Admin";
+  const settings = await getSiteSettings();
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col md:flex-row">
-      {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col shrink-0">
+      {/* Sidebar Navigation — hidden on mobile, visible on desktop */}
+      <aside className="hidden md:flex md:w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col shrink-0 sticky top-0 h-[100dvh]">
         {/* Brand/Logo Header */}
         <div className="h-16 border-b border-sidebar-border px-6 flex items-center gap-3 bg-sidebar">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <Logo className="w-7 h-7 text-primary shrink-0" />
           <div className="flex flex-col">
             <span className="font-semibold text-sm tracking-tight leading-none text-sidebar-foreground">
-              LearnForLess
+              {settings.site_name}
             </span>
-            <span className="text-[10px] text-sidebar-foreground/50 font-semibold mt-0.5 tracking-wider uppercase">
-              CMS
-            </span>
-          </div>
+            </div>
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 p-4 space-y-1">
-          <Link
-            href="/admin/dashboard"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-sidebar-foreground/80"
-          >
-            <LayoutDashboard className="w-4 h-4 text-sidebar-foreground/60" />
-            <span>Dashboard</span>
-          </Link>
-          <Link
-            href="/admin/courses"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-sidebar-foreground/80"
-          >
-            <BookMarked className="w-4 h-4 text-sidebar-foreground/60" />
-            <span>Courses</span>
-          </Link>
-          <Link
-            href="/admin/tokens"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-sidebar-foreground/80"
-          >
-            <Key className="w-4 h-4 text-sidebar-foreground/60" />
-            <span>Access Tokens</span>
-          </Link>
-          <Link
-            href="/admin/users"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-sidebar-foreground/80"
-          >
-            <Users className="w-4 h-4 text-sidebar-foreground/60" />
-            <span>User Directory</span>
-          </Link>
-          <Link
-            href="/admin/settings"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-sidebar-foreground/80"
-          >
-            <Settings className="w-4 h-4 text-sidebar-foreground/60" />
-            <span>Settings</span>
-          </Link>
-        </nav>
+        <AdminSidebarNav />
+
+        {/* Sidebar Footer User Info */}
 
         {/* Sidebar Footer User Info */}
         <div className="p-4 border-t border-sidebar-border bg-sidebar flex items-center justify-between gap-2">
@@ -124,10 +81,9 @@ export default async function AdminLayout({
         {/* Top Header Bar */}
         <header className="h-16 bg-card/95 backdrop-blur border-b border-border px-6 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground hidden sm:inline">
-              Admin
-            </span>
-          </div>
+            {/* Mobile menu trigger */}
+            <AdminMobileSidebar displayName={displayName} siteName={settings.site_name} />
+                      </div>
 
           <div className="flex items-center gap-4">
             {/* Logout button */}

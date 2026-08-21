@@ -53,11 +53,6 @@ export default function EditTokenForm({ token, courses }: EditTokenFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!name.trim()) {
-      toast.error("Student account name is required.");
-      return;
-    }
-
     if (selectedCourses.length === 0) {
       toast.error("Select at least one course.");
       return;
@@ -90,14 +85,13 @@ export default function EditTokenForm({ token, courses }: EditTokenFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-1.5">
-        <Label htmlFor="student-name">Student Account Name *</Label>
+        <Label htmlFor="student-name">Reference Name</Label>
         <Input
           id="student-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. John Carter"
+          placeholder="e.g. Foundation batch — optional admin note"
           disabled={isPending}
-          required
         />
       </div>
 
@@ -177,7 +171,7 @@ export default function EditTokenForm({ token, courses }: EditTokenFormProps) {
             Cancel
           </Button>
         </Link>
-        <Button type="submit" disabled={isPending || !name.trim()}>
+        <Button type="submit" disabled={isPending}>
           Save Changes
         </Button>
       </div>

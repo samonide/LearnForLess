@@ -204,7 +204,7 @@
     @apply bg-transparent p-0;
   }
   .prose-lesson a {
-    @apply text-primary underline hover:no-underline;
+    @apply text-primary no-underline hover:underline;
   }
   .prose-lesson table {
     @apply w-full border-collapse my-4 text-sm;
@@ -216,4 +216,45 @@
   .prose-lesson th {
     @apply bg-muted font-semibold;
   }
+}
+
+/* ── Sonner Toast Theme ── */
+[data-sonner-toaster] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+  --success-bg: oklch(0.25 0.06 160);
+  --success-border: oklch(0.45 0.12 160);
+  --success-text: oklch(0.90 0.03 160);
+  --error-bg: oklch(0.25 0.06 20);
+  --error-border: oklch(0.55 0.18 20);
+  --error-text: oklch(0.90 0.02 20);
+  --info-bg: oklch(0.25 0.04 220);
+  --info-border: oklch(0.45 0.08 220);
+  --info-text: oklch(0.90 0.02 220);
+  --warning-bg: oklch(0.28 0.06 75);
+  --warning-border: oklch(0.55 0.15 75);
+  --warning-text: oklch(0.90 0.02 75);
+}
+
+[data-sonner-toast] {
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-family: var(--font-sans, inherit);
+  box-shadow: var(--shadow-elevated);
+}
+
+[data-sonner-toast] [data-close-button] {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: opacity 0.15s;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  opacity: 0.8;
+}
+
+[data-sonner-toast] [data-icon] {
+  display: none;
 }

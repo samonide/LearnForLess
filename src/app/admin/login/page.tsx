@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Logo from "@/components/logo";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -61,9 +62,7 @@ export default function AdminLoginPage() {
       {/* Header */}
       <header className="border-b border-border bg-card px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <Logo className="w-7 h-7 text-primary" />
           <span className="font-semibold text-lg tracking-tight text-foreground">
             LearnForLess
           </span>
@@ -72,7 +71,7 @@ export default function AdminLoginPage() {
 
       {/* Login Box */}
       <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 md:p-10 space-y-6">
+        <div className="w-full max-w-md bg-card border border-border rounded-xl p-6 sm:p-8 md:p-10 space-y-6">
           <div className="space-y-1.5">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Admin Portal

@@ -112,7 +112,12 @@ export default function CourseViewer({
         setCourseProgress(result.data.courseProgress);
       }
 
-      router.refresh();
+      // Auto-advance to next lesson if available
+      if (nextLesson) {
+        router.push(`/course/${courseId}/lesson/${nextLesson.id}`);
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -136,27 +141,34 @@ export default function CourseViewer({
         const videoSrc = lesson.signed_url || lesson.content;
         if (!videoSrc) {
           return (
-            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-              <PlayCircle className="w-12 h-12 text-muted-foreground/50" />
-              <span>Video content is not available.</span>
+            <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <PlayCircle className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Video content is not available.</p>
             </div>
           );
         }
         return (
-          <VideoPlayer
-            src={videoSrc}
-            title={lesson.title}
-            lessonId={lessonId}
-            initialPosition={currentLessonProgress?.last_position ?? 0}
-          />
+          <div className="w-full">
+            <VideoPlayer
+              key={lessonId}
+              src={videoSrc}
+              title={lesson.title}
+              lessonId={lessonId}
+              initialPosition={currentLessonProgress?.last_position ?? 0}
+            />
+          </div>
         );
       case "pdf":
         const pdfUrl = lesson.signed_url || lesson.content;
         if (!pdfUrl) {
           return (
-            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-              <FileText className="w-12 h-12 text-muted-foreground/50" />
-              <span>PDF document is not available.</span>
+            <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <FileText className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">PDF document not available.</p>
             </div>
           );
         }
@@ -165,23 +177,27 @@ export default function CourseViewer({
         const imgUrl = lesson.signed_url || lesson.content;
         if (!imgUrl) {
           return (
-            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-              <ImageIcon className="w-12 h-12 text-muted-foreground/50" />
-              <span>Image is not available.</span>
+            <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <ImageIcon className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Image not available.</p>
             </div>
           );
         }
         return (
           <div className="bg-card border border-border rounded-xl overflow-hidden flex items-center justify-center p-4">
-            <img src={imgUrl} alt={lesson.title} className="max-w-full max-h-[600px] object-contain rounded-lg" />
+            <img src={imgUrl} alt={lesson.title} loading="lazy" className="max-w-full max-h-[600px] object-contain rounded-lg" />
           </div>
         );
       case "link":
         if (!lesson.content) {
           return (
-            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-              <ExternalLink className="w-12 h-12 text-muted-foreground/50" />
-              <span>Link URL is not available.</span>
+            <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <ExternalLink className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Link URL not available.</p>
             </div>
           );
         }
@@ -208,9 +224,11 @@ export default function CourseViewer({
         const fileUrl = lesson.signed_url || lesson.content;
         if (!fileUrl) {
           return (
-            <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-              <Download className="w-12 h-12 text-muted-foreground/50" />
-              <span>Attachment file is not available.</span>
+            <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <Download className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Attachment not available.</p>
             </div>
           );
         }
@@ -220,24 +238,26 @@ export default function CourseViewer({
               <Download className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="font-semibold text-lg text-foreground">Download Attachment</h3>
+              <h3 className="font-semibold text-lg text-foreground">Lesson Material</h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Click below to download the course materials provided for this lesson.
+                Download the file attached to this lesson.
               </p>
             </div>
             <a href={fileUrl} download className="block">
               <Button className="w-full flex items-center justify-center gap-2">
-                Download File
                 <Download className="w-4 h-4" />
+                Download File
               </Button>
             </a>
           </div>
         );
       default:
         return (
-          <div className="p-8 bg-card border border-border rounded-xl text-center text-muted-foreground flex flex-col items-center gap-2">
-            <HelpCircle className="w-12 h-12 text-muted-foreground/50" />
-            <span>Unsupported content type.</span>
+          <div className="p-10 bg-card border border-border rounded-xl text-center flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <HelpCircle className="w-6 h-6 text-muted-foreground/50" />
+            </div>
+            <p className="text-sm text-muted-foreground">Unsupported content type.</p>
           </div>
         );
     }
@@ -308,7 +328,7 @@ export default function CourseViewer({
                     <Link
                       key={les.id}
                       href={`/course/${courseId}/lesson/${les.id}`}
-                      className={`flex items-start gap-2.5 p-2 rounded-md text-sm font-medium ${
+                      className={`flex items-start gap-2.5 p-2 rounded-md text-sm font-medium no-underline ${
                         isCurrent
                           ? "bg-primary text-primary-foreground"
                           : "hover:bg-sidebar-accent text-foreground"
@@ -345,14 +365,14 @@ export default function CourseViewer({
   return (
     <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-background">
       {/* Desktop Sidebar (Left side, fixed width) */}
-      <aside className="hidden md:block w-80 shrink-0 h-[calc(100vh-4rem)] sticky top-16">
+      <aside className="hidden md:block w-80 shrink-0 h-[calc(100vh-3.5rem)] sticky top-14">
         <SidebarContent />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* Course viewer top-bar */}
-        <div className="sticky top-16 md:top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between gap-4">
+        <div className="sticky top-14 md:top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-6 lg:px-10 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Mobile Sidebar Trigger (Menu icon) */}
             <Sheet>
@@ -363,7 +383,7 @@ export default function CourseViewer({
                   </Button>
                 }
               />
-              <SheetContent side="left" className="p-0 w-80">
+              <SheetContent side="left" className="p-0 w-[calc(100vw-1.5rem)] sm:w-80">
                 <SidebarContent />
               </SheetContent>
             </Sheet>
@@ -377,13 +397,13 @@ export default function CourseViewer({
           <div className="flex items-center gap-2">
             {prevLesson ? (
               <Link href={`/course/${courseId}/lesson/${prevLesson.id}`}>
-                <Button variant="outline" size="sm" className="flex items-center gap-1.5 h-9">
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 h-8">
                   <ChevronLeft className="w-4 h-4" />
                   <span className="hidden sm:inline">Previous</span>
                 </Button>
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled className="flex items-center gap-1.5 h-9">
+              <Button variant="outline" size="sm" disabled className="flex items-center gap-1.5 h-8">
                 <ChevronLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Previous</span>
               </Button>
@@ -391,13 +411,13 @@ export default function CourseViewer({
 
             {nextLesson ? (
               <Link href={`/course/${courseId}/lesson/${nextLesson.id}`}>
-                <Button variant="outline" size="sm" className="flex items-center gap-1.5 h-9">
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 h-8">
                   <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
             ) : (
-              <Button variant="outline" size="sm" disabled className="flex items-center gap-1.5 h-9">
+              <Button variant="outline" size="sm" disabled className="flex items-center gap-1.5 h-8">
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -406,67 +426,70 @@ export default function CourseViewer({
         </div>
 
         {/* Content canvas */}
-        <div className="flex-1 p-6 md:p-10 max-w-4xl w-full mx-auto space-y-8">
-          <div className="space-y-3">
-            {/* Module / lesson context */}
-            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-wide">
-              {currentModule ? (
-                <>
-                  <span>{currentModule.title}</span>
-                  <span className="opacity-50">/</span>
-                </>
-              ) : null}
-              <span>
-                Lesson {Math.min(lessonInModuleIdx + 1, Math.max(currentModuleLessons.length, 1))}
-                {currentModuleLessons.length > 1
-                  ? ` of ${currentModuleLessons.length}`
-                  : ""}
-              </span>
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground text-balance">
-              {lesson.title}
-            </h1>
-            {lesson.description && (
-              <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-3xl">
-                {lesson.description}
-              </p>
-            )}
-          </div>
-
-          {/* Dynamic Content Container */}
-          <div className="py-2">{renderContent()}</div>
-
-          {/* Complete Lesson Action / Bottom Bar */}
-          <div className="border-t border-border pt-8 flex items-center justify-between gap-4">
-            <div>
-              {completedLessons.has(lessonId) ? (
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-semibold text-sm">
-                  <Check className="w-4 h-4 stroke-[3px]" />
-                  <span>Lesson Completed</span>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Finish this lesson and mark it as complete to update your overall course progress.
+        <div className="flex-1 px-6 lg:px-10 py-8 w-full mx-auto">
+          <div className="max-w-5xl mx-auto space-y-10">
+            {/* Lesson header area */}
+            <div className="max-w-3xl space-y-2.5">
+              {/* Module / lesson context */}
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                {currentModule ? (
+                  <>
+                    <span>{currentModule.title}</span>
+                    <span className="opacity-50">/</span>
+                  </>
+                ) : null}
+                <span>
+                  Lesson {Math.min(lessonInModuleIdx + 1, Math.max(currentModuleLessons.length, 1))}
+                  {currentModuleLessons.length > 1
+                    ? ` of ${currentModuleLessons.length}`
+                    : ""}
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground text-balance">
+                {lesson.title}
+              </h1>
+              {lesson.description && (
+                <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-3xl">
+                  {lesson.description}
                 </p>
               )}
             </div>
 
-            <Button
-              onClick={handleMarkComplete}
-              disabled={completedLessons.has(lessonId) || isPending}
-              className="flex items-center gap-2 h-11 px-6 font-semibold"
-            >
-              {isPending ? (
-                <span>Saving...</span>
-              ) : completedLessons.has(lessonId) ? (
-                <span>Completed</span>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Mark as Complete</span>
-                </>
-              )}
-            </Button>
+            {/* Dynamic Content Container */}
+            <div className="w-full">{renderContent()}</div>
+
+            {/* Complete Lesson Action / Bottom Bar */}
+            <div className="border-t border-border pt-8 flex items-center justify-between gap-4">
+              <div>
+                {completedLessons.has(lessonId) ? (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-semibold text-sm">
+                    <Check className="w-4 h-4 stroke-[3px]" />
+                    <span>Lesson Completed</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Finish this lesson and mark it as complete to update your overall course progress.
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={handleMarkComplete}
+                disabled={completedLessons.has(lessonId) || isPending}
+                className="flex items-center gap-2 h-11 px-6 font-semibold"
+              >
+                {isPending ? (
+                  <span>Saving...</span>
+                ) : completedLessons.has(lessonId) ? (
+                  <span>Completed</span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Mark as Complete</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </main>

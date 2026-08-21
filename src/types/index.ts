@@ -214,7 +214,7 @@ export type ActionResult<T = void> =
   | { success: false; error: string };
 
 export type TokenRedemptionResult =
-  | { success: true; courseIds: string[] }
+  | { success: true; courseIds: string[]; courseNames?: string[] }
   | { success: false; error: TokenRedemptionError };
 
 export type RecoveryResult =
@@ -283,7 +283,7 @@ export type UpdateLessonInput = Omit<Partial<CreateLessonInput>, "content"> &
   LessonContentUpdate & { id: string };
 
 export type GenerateTokenInput = {
-  name: string;
+  name?: string;
   description?: string;
   course_ids: string[];
   expires_at?: string | null;

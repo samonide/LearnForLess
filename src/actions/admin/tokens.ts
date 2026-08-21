@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { buildStudentTokenLoginEmail, generateSecureToken } from "@/lib/utils";
+import { generateSecureToken } from "@/lib/utils";
 import type { ActionResult, GenerateTokenInput } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -37,11 +37,7 @@ export async function generateAccessToken(
     // Generate cryptographically secure token
     const { rawToken, tokenHash, tokenHint } = await generateSecureToken();
 
-    const trimmedName = input.name.trim();
-
-    if (!trimmedName) {
-      return { success: false, error: "Student account name is required." };
-    }
+    const trimmedName = input.name?.trim() ?? "";
 
     // Insert token record (only hash stored — NEVER raw token)
     const { data: token, error: tokenError } = await adminClient
@@ -50,7 +46,7 @@ export async function generateAccessToken(
         token_hash: tokenHash,
         token_hint: tokenHint,
         created_by: user.id,
-        name: trimmedName,
+        name: trimmedName || "Unnamed Token",
         description: input.description?.trim() ?? null,
         is_active: true,
         expires_at: input.expires_at ?? null,
@@ -61,45 +57,6 @@ export async function generateAccessToken(
       .single();
 
     if (tokenError) return { success: false, error: tokenError.message };
-
-    const loginEmail = buildStudentTokenLoginEmail(token.id);
-
-    const { data: studentAuth, error: createAuthError } = await adminClient.auth.admin.createUser({
-      email: loginEmail,
-      password: rawToken,
-      email_confirm: true,
-      user_metadata: {
-        display_name: trimmedName,
-        role: "student",
-      },
-    });
-
-    if (createAuthError || !studentAuth.user) {
-      await adminClient.from("access_tokens").delete().eq("id", token.id);
-      return { success: false, error: createAuthError?.message ?? "Failed to create student account." };
-    }
-
-    const studentId = studentAuth.user.id;
-
-    const { error: bindError } = await adminClient
-      .from("access_tokens")
-      .update({ bound_user_id: studentId })
-      .eq("id", token.id);
-
-    if (bindError) {
-      await adminClient.auth.admin.deleteUser(studentId);
-      await adminClient.from("access_tokens").delete().eq("id", token.id);
-      return { success: false, error: bindError.message };
-    }
-
-    await adminClient
-      .from("profiles")
-      .update({
-        display_name: trimmedName,
-        role: "student",
-        email: null,
-      })
-      .eq("id", studentId);
 
     // Link courses to this token
     const tokenCourses = input.course_ids.map((courseId) => ({
@@ -113,29 +70,9 @@ export async function generateAccessToken(
 
     if (coursesError) {
       // Rollback: delete the token
-      await adminClient.auth.admin.deleteUser(studentId);
       await adminClient.from("access_tokens").delete().eq("id", token.id);
       return { success: false, error: coursesError.message };
     }
-
-    await adminClient.from("user_courses").insert(
-      input.course_ids.map((courseId) => ({
-        user_id: studentId,
-        course_id: courseId,
-        granted_by_token: token.id,
-      }))
-    );
-
-    await adminClient
-      .from("student_access")
-      .upsert(
-        {
-          user_id: studentId,
-          token_id: token.id,
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "token_id" }
-      );
 
     // Audit log — do NOT log rawToken or tokenHash
     await adminClient.from("audit_logs").insert({
@@ -145,7 +82,6 @@ export async function generateAccessToken(
       entity_id: token.id,
       metadata: {
         name: input.name,
-        student_user_id: studentId,
         course_count: input.course_ids.length,
         has_expiry: !!input.expires_at,
         has_max_uses: true,
@@ -364,12 +300,14 @@ export async function updateToken(
 
     if (error) return { success: false, error: error.message };
 
-    if (token?.bound_user_id && updates.name?.trim()) {
-      await adminClient
-        .from("profiles")
-        .update({ display_name: updates.name.trim(), email: null })
-        .eq("id", token.bound_user_id);
-    }
+    // Remove the display_name overwrite — token name is an admin note,
+    // never the student's account name.
+    // if (token?.bound_user_id && updates.name?.trim()) {
+    //   await adminClient
+    //     .from("profiles")
+    //     .update({ display_name: updates.name.trim(), email: null })
+    //     .eq("id", token.bound_user_id);
+    // }
 
     revalidatePath("/admin/tokens");
     return { success: true, data: undefined };

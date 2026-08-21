@@ -110,6 +110,7 @@ export default function UsersList({
             </p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
@@ -180,6 +181,7 @@ export default function UsersList({
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
 

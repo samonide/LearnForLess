@@ -3,6 +3,7 @@ import { getStudentCourses, getNextUnfinishedLesson } from "@/actions/student/co
 import { Button } from "@/components/ui/button";
 import TokenRedeemForm from "@/components/TokenRedeemForm";
 import { ArrowRight, BookOpen, Play, CheckCircle2 } from "lucide-react";
+import EmptyStateIllustration from "@/components/empty-state-illustration";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -45,10 +46,18 @@ function groupCourses(courses: CourseItem[]) {
    visual card with
    prominent thumbnail
    ────────────────────── */
-function CourseCard({ course, href }: { course: CourseItem; href: string }) {
+function CourseCard({
+  course,
+  courseHref,
+  continueHref,
+}: {
+  course: CourseItem;
+  courseHref: string;
+  continueHref: string | null;
+}) {
   return (
-    <Link href={href} className="block group">
-      <div className="bg-card border border-border rounded-xl overflow-hidden transition group-hover:border-muted-foreground/30">
+    <div className="bg-card border border-border rounded-xl overflow-hidden transition hover:border-muted-foreground/30 group">
+      <Link href={courseHref} className="block">
         <div className="aspect-[5/3] bg-muted overflow-hidden">
           {course.thumbnail_url ? (
             <img
@@ -83,14 +92,14 @@ function CourseCard({ course, href }: { course: CourseItem; href: string }) {
           {course.progress_pct > 0 && (
             <div className="h-1 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-primary transition-all"
+                className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${course.progress_pct}%` }}
               />
             </div>
           )}
         </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -98,10 +107,18 @@ function CourseCard({ course, href }: { course: CourseItem; href: string }) {
    Featured in-progress
    — larger hero card
    ────────────────────── */
-function FeaturedCard({ course, href }: { course: CourseItem; href: string }) {
+function FeaturedCard({
+  course,
+  courseHref,
+  continueHref,
+}: {
+  course: CourseItem;
+  courseHref: string;
+  continueHref: string | null;
+}) {
   return (
-    <Link href={href} className="block group">
-      <div className="bg-card border border-border rounded-xl overflow-hidden transition group-hover:border-muted-foreground/30">
+    <div className="bg-card border border-border rounded-xl overflow-hidden transition hover:border-muted-foreground/30 group">
+      <Link href={courseHref} className="block">
         <div className="aspect-[5/3] md:aspect-[8/3] bg-muted overflow-hidden">
           {course.thumbnail_url ? (
             <img
@@ -124,31 +141,37 @@ function FeaturedCard({ course, href }: { course: CourseItem; href: string }) {
               {course.description}
             </p>
           )}
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="tabular-nums">{course.module_count} module{course.module_count !== 1 ? "s" : ""}</span>
-              <span className="tabular-nums">{course.total_lessons} lesson{course.total_lessons !== 1 ? "s" : ""}</span>
-              <span className="tabular-nums text-primary font-medium">{course.completed_lessons} completed</span>
-            </div>
-            <Button size="sm" className="shrink-0">
-              Continue
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </Button>
+        </div>
+      </Link>
+      <div className="px-5 md:px-7 pb-5 md:pb-7 -mt-2 space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="tabular-nums">{course.module_count} module{course.module_count !== 1 ? "s" : ""}</span>
+            <span className="tabular-nums">{course.total_lessons} lesson{course.total_lessons !== 1 ? "s" : ""}</span>
+            <span className="tabular-nums text-primary font-medium">{course.completed_lessons} completed</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${course.progress_pct}%` }}
-              />
-            </div>
-            <span className="text-sm font-semibold text-foreground tabular-nums min-w-[3ch] text-right">
-              {course.progress_pct}%
-            </span>
+          {continueHref ? (
+            <Link href={continueHref}>
+              <Button size="sm" className="shrink-0">
+                Continue
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </Link>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${course.progress_pct}%` }}
+            />
           </div>
+          <span className="text-sm font-semibold text-foreground tabular-nums min-w-[3ch] text-right">
+            {course.progress_pct}%
+          </span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -183,18 +206,19 @@ export default async function DashboardPage() {
   const overallPct = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100);
 
   // ── Pre-compute hrefs ──
-  const courseHrefs = new Map<string, string>();
+  const courseHrefs = new Map<string, { courseHref: string; continueHref: string | null }>();
   for (const course of [...inProgress, ...notStarted]) {
     const { lessonId } = await getNextUnfinishedLesson(course.id);
-    courseHrefs.set(
-      course.id,
-      lessonId
-        ? `/course/${course.id}/lesson/${lessonId}`
-        : `/course/${course.id}`
-    );
+    courseHrefs.set(course.id, {
+      courseHref: `/course/${course.id}`,
+      continueHref: lessonId ? `/course/${course.id}/lesson/${lessonId}` : null,
+    });
   }
   for (const course of completed) {
-    courseHrefs.set(course.id, `/course/${course.id}`);
+    courseHrefs.set(course.id, {
+      courseHref: `/course/${course.id}`,
+      continueHref: null,
+    });
   }
 
   return (
@@ -212,16 +236,19 @@ export default async function DashboardPage() {
 
       {/* ── Empty state ── */}
       {courses.length === 0 ? (
-        <div className="max-w-lg">
-          <p className="text-muted-foreground leading-relaxed mb-6">
-            You don&rsquo;t have any courses yet. Enter an access token from your instructor below
-            to unlock your first course.
-          </p>
-          <div className="border-t border-border pt-6">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
-              Redeem access token
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 md:gap-12">
+          <EmptyStateIllustration />
+          <div className="max-w-lg">
+            <p className="text-muted-foreground leading-relaxed mb-6">
+              You don&rsquo;t have any courses yet. Enter an access token from your instructor below
+              to unlock your first course.
             </p>
-            <TokenRedeemForm />
+            <div className="border-t border-border pt-6">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
+                Redeem access token
+              </p>
+              <TokenRedeemForm />
+            </div>
           </div>
         </div>
       ) : (
@@ -229,7 +256,7 @@ export default async function DashboardPage() {
           {/* ── In progress ── */}
           {inProgress.length > 0 && (
             <section>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+              <p className="text-sm font-semibold text-foreground mb-5">
                 In progress
               </p>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -237,7 +264,8 @@ export default async function DashboardPage() {
                   <FeaturedCard
                     key={course.id}
                     course={course}
-                    href={courseHrefs.get(course.id)!}
+                    courseHref={courseHrefs.get(course.id)!.courseHref}
+                    continueHref={courseHrefs.get(course.id)!.continueHref}
                   />
                 ))}
               </div>
@@ -247,7 +275,7 @@ export default async function DashboardPage() {
           {/* ── Not started ── */}
           {notStarted.length > 0 && (
             <section>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+              <p className="text-sm font-semibold text-foreground mb-5">
                 Not started
               </p>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -255,7 +283,8 @@ export default async function DashboardPage() {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    href={courseHrefs.get(course.id)!}
+                    courseHref={courseHrefs.get(course.id)!.courseHref}
+                    continueHref={courseHrefs.get(course.id)!.continueHref}
                   />
                 ))}
               </div>
@@ -265,7 +294,7 @@ export default async function DashboardPage() {
           {/* ── Completed ── */}
           {completed.length > 0 && (
             <section>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-5">
+              <p className="text-sm font-semibold text-foreground mb-5">
                 Completed
               </p>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -273,7 +302,8 @@ export default async function DashboardPage() {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    href={courseHrefs.get(course.id)!}
+                    courseHref={courseHrefs.get(course.id)!.courseHref}
+                    continueHref={courseHrefs.get(course.id)!.continueHref}
                   />
                 ))}
               </div>
@@ -282,7 +312,7 @@ export default async function DashboardPage() {
 
           {/* ── Token redemption ── */}
           <div className="border-t border-border pt-6">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+            <p className="text-sm font-semibold text-foreground mb-3">
               Redeem another token
             </p>
             <p className="text-muted-foreground text-sm mb-4 max-w-md">

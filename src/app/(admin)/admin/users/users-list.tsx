@@ -1,10 +1,19 @@
 "use client";
 
-import { grantCourseAccess, revokeCourseAccess } from "@/actions/admin/users";
+import { deleteUser, grantCourseAccess, revokeCourseAccess } from "@/actions/admin/users";
 import { generateRecoveryToken } from "@/actions/student/recovery";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -52,8 +61,8 @@ import {
     Loader2,
     PlusCircle,
     ShieldCheck,
+    Trash2,
     User,
-    XCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -111,6 +120,13 @@ export default function UsersList({
   // Recovery token issuance state
   const [recoveryToken, setRecoveryToken] = useState<string | null>(null);
   const [recoveryCopied, setRecoveryCopied] = useState(false);
+
+  // Revoke confirmation state — revoke stays behind a deliberate confirm
+  const [revokeTarget, setRevokeTarget] = useState<{ courseId: string; courseTitle: string } | null>(null);
+
+  // Permanent deletion confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -211,12 +227,33 @@ export default function UsersList({
       const res = await revokeCourseAccess(selectedUser.id, courseId);
       if (res.success) {
         toast.success("Course access revoked.");
-        
+
         // Sync local selected user state
         const updatedCourses = selectedUser.user_courses.filter((uc) => uc.course_id !== courseId);
         const updatedUser = { ...selectedUser, user_courses: updatedCourses };
         setSelectedUser(updatedUser);
+        setRevokeTarget(null);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
 
+  // Permanent delete handler
+  function handleDeleteUser() {
+    if (!deleteTarget) return;
+
+    startTransition(async () => {
+      const res = await deleteUser(deleteTarget.id);
+
+      if (res.success) {
+        toast.success("Student account permanently deleted.");
+        if (selectedUser?.id === deleteTarget.id) {
+          setSelectedUser(null);
+        }
+        setDeleteTarget(null);
+        setDeleteConfirmText("");
         router.refresh();
       } else {
         toast.error(res.error);
@@ -228,6 +265,7 @@ export default function UsersList({
     <div className="space-y-4">
       {/* Users Table */}
       <div className="rounded-xl bg-card border border-border overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/30">
             <TableRow>
@@ -281,21 +319,39 @@ export default function UsersList({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedUser(user)}
-                      className="flex items-center gap-1.5 h-8 text-xs border-border"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      View Access
-                    </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedUser(user)}
+                        className="flex items-center gap-1.5 h-8 text-xs border-border"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View Access
+                      </Button>
+                      {user.role === "student" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDeleteTarget(user);
+                            setDeleteConfirmText("");
+                          }}
+                          className="h-8 w-8 px-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Delete student account"
+                          aria-label="Delete student account"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Pagination Controls */}
@@ -328,22 +384,26 @@ export default function UsersList({
       {/* ── USER ACCESS MANAGING SHEET (SLIDE OVER) ───────────── */}
       <Sheet open={selectedUser !== null} onOpenChange={(open) => !open && setSelectedUser(null)}>
         {selectedUser && (
-          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
             <SheetHeader className="border-b border-border pb-4">
               <SheetTitle className="text-lg">Access Profiles</SheetTitle>
               <SheetDescription className="text-xs">
-                Manage course memberships for {selectedUser.display_name || "Student"}.
+                Review who this user is, what they have access to, and manage their memberships.
               </SheetDescription>
             </SheetHeader>
 
             <div className="space-y-6 pt-5">
-              {/* User Bio Card */}
+              {/* WHO — user identity */}
               <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-lg border border-border">
                 <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-muted-foreground" />
+                  {selectedUser.role === "admin" ? (
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                  ) : (
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  )}
                 </div>
-                <div className="text-xs truncate">
-                  <span className="font-semibold text-foreground block">
+                <div className="text-xs min-w-0">
+                  <span className="font-semibold text-foreground block truncate">
                     {selectedUser.display_name || "Anonymous Student"}
                   </span>
                   <span className="text-muted-foreground block truncate">{selectedUser.email || "No Email"}</span>
@@ -351,19 +411,27 @@ export default function UsersList({
                     ID: {selectedUser.id}
                   </span>
                 </div>
+                <Badge
+                  variant={selectedUser.role === "admin" ? "default" : "outline"}
+                  className="capitalize text-[10px] px-1.5 shrink-0 ml-auto"
+                >
+                  {selectedUser.role}
+                </Badge>
               </div>
 
-              {/* Current Memberships */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm text-foreground flex items-center gap-2 border-b border-border pb-1">
+              {/* HAS — current memberships */}
+              <div>
+                <h3 className="font-semibold text-sm text-foreground flex items-center gap-2 border-b border-border pb-2 mb-3">
                   <GraduationCap className="w-4 h-4 text-primary" />
                   Active Courses ({selectedUser.user_courses?.length ?? 0})
                 </h3>
 
                 {selectedUser.user_courses?.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-4 text-center">
-                    No active course memberships assigned.
-                  </p>
+                  <div className="text-center py-6 border border-dashed border-border rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground">
+                      No active course memberships assigned.
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {selectedUser.user_courses.map((uc) => {
@@ -373,8 +441,8 @@ export default function UsersList({
                           key={uc.course_id}
                           className="border border-border rounded-lg p-3 bg-card flex items-center justify-between gap-3"
                         >
-                          <div className="text-xs">
-                            <span className="font-semibold text-foreground block">
+                          <div className="text-xs min-w-0">
+                            <span className="font-semibold text-foreground block truncate">
                               {courseTitle}
                             </span>
                             {uc.expires_at ? (
@@ -391,13 +459,12 @@ export default function UsersList({
 
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             disabled={isPending}
-                            onClick={() => handleRevokeAccess(uc.course_id)}
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
-                            title="Revoke Course Access"
+                            onClick={() => setRevokeTarget({ courseId: uc.course_id, courseTitle })}
+                            className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                           >
-                            <XCircle className="w-4 h-4" />
+                            Revoke
                           </Button>
                         </div>
                       );
@@ -406,16 +473,16 @@ export default function UsersList({
                 )}
               </div>
 
-              {/* Grant Manual Membership */}
+              {/* CAN — grant a new membership, connected to the list above */}
               {selectedUser.role !== "admin" && (
-                <Card className="border border-border">
-                  <CardHeader className="p-4 pb-2 bg-muted/20 border-b border-border">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <div className="border border-border rounded-xl bg-card">
+                  <div className="border-b border-border bg-muted/20 px-4 py-3">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
                       <PlusCircle className="w-4 h-4 text-primary" />
                       Grant Course Access
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                    </h3>
+                  </div>
+                  <div className="p-4">
                     <form onSubmit={handleGrantAccess} className="space-y-4">
                       {/* Course dropdown */}
                       <div className="space-y-1.5 text-left">
@@ -426,7 +493,7 @@ export default function UsersList({
                           disabled={isPending}
                           required
                         >
-                          <SelectTrigger id="grant-course">
+                          <SelectTrigger id="grant-course" className="w-full">
                             <SelectValue placeholder="Choose course..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -440,6 +507,11 @@ export default function UsersList({
                               ))}
                           </SelectContent>
                         </Select>
+                        {courses.length === 0 || courses.every((c) => selectedUser.user_courses.some((uc) => uc.course_id === c.id)) ? (
+                          <span className="block text-[10px] text-muted-foreground">
+                            All published courses are already assigned to this student.
+                          </span>
+                        ) : null}
                       </div>
 
                       {/* Expiration date */}
@@ -470,20 +542,20 @@ export default function UsersList({
                         )}
                       </Button>
                     </form>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              {/* Issue Recovery Token */}
+              {/* Recovery token — muted, contextual action */}
               {selectedUser.role !== "admin" && (
-                <Card className="border border-border">
-                  <CardHeader className="p-4 pb-2 bg-muted/20 border-b border-border">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <div className="border border-border rounded-xl bg-card">
+                  <div className="border-b border-border bg-muted/20 px-4 py-3">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
                       <KeyRound className="w-4 h-4 text-primary" />
-                      Issue Recovery Token
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                      Password Recovery
+                    </h3>
+                  </div>
+                  <div className="p-4">
                     {selectedUser.username ? (
                       <form onSubmit={handleIssueRecoveryToken} className="space-y-3">
                         <p className="text-xs text-muted-foreground">
@@ -497,8 +569,9 @@ export default function UsersList({
                         </p>
                         <Button
                           type="submit"
+                          variant="outline"
                           disabled={isPending}
-                          className="w-full flex items-center justify-center gap-2 h-10 font-semibold"
+                          className="w-full flex items-center justify-center gap-2 h-10"
                         >
                           {isPending ? (
                             <>
@@ -518,13 +591,93 @@ export default function UsersList({
                         This user has no username and cannot use password recovery.
                       </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </div>
           </SheetContent>
         )}
       </Sheet>
+
+      {/* ── REVOKE ACCESS CONFIRMATION ─────────────────────────── */}
+      <AlertDialog open={revokeTarget !== null} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke course access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removing{" "}
+              <span className="font-medium text-foreground">
+                {revokeTarget?.courseTitle || "this course"}
+              </span>{" "}
+              means {selectedUser?.display_name || "this student"} will lose access to it immediately. This can be
+              undone by granting access again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isPending}
+              onClick={() => revokeTarget && handleRevokeAccess(revokeTarget.courseId)}
+            >
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Revoke Access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── PERMANENT DELETE CONFIRMATION ─────────────────────── */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto w-12 h-12 bg-destructive/10 border border-destructive/30 rounded-full flex items-center justify-center mb-2">
+              <Trash2 className="w-6 h-6 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl font-semibold">
+              Permanently delete this student?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              <span className="font-semibold text-foreground">
+                {deleteTarget?.display_name || deleteTarget?.email || "This student"}
+              </span>{" "}
+              will be <span className="font-semibold text-destructive">permanently removed</span> along with:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="bg-muted/30 border border-border rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+            <p>• Their profile and login account</p>
+            <p>• All course memberships and lesson progress</p>
+            <p>• Token redemption and access history</p>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center -mt-1">
+            This action <span className="font-semibold text-destructive">cannot be undone</span>. Type{" "}
+            <span className="font-mono font-semibold text-foreground">DELETE</span> to confirm.
+          </p>
+
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            disabled={isPending}
+            autoFocus
+            className="text-center font-mono"
+          />
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isPending || deleteConfirmText !== "DELETE"}
+              onClick={() => handleDeleteUser()}
+            >
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── ONE TIME RECOVERY TOKEN MODAL ──────────────────────── */}
       <Dialog open={recoveryToken !== null} onOpenChange={() => {}}>

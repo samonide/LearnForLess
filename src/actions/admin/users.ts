@@ -4,7 +4,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { ActionResult, GrantAccessInput } from "@/types";
 
-async function getAdminUser() {
+export async function getAdminUser() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -61,10 +61,9 @@ export async function grantCourseAccess(
   input: GrantAccessInput
 ): Promise<ActionResult<void>> {
   try {
-    await getAdminUser();
-    const adminClient = createAdminClient();
+    const { supabase } = await getAdminUser();
 
-    const result = await adminClient.rpc("grant_course_access_admin", {
+    const result = await supabase.rpc("grant_course_access_admin", {
       p_user_id: input.user_id,
       p_course_id: input.course_id,
       p_expires_at: input.expires_at ?? null,
@@ -160,6 +159,64 @@ export async function getUserDetails(userId: string) {
 }
 
 // ============================================================
+// DELETE USER (permanent)
+// ============================================================
+
+export async function deleteUser(userId: string): Promise<ActionResult<void>> {
+  try {
+    const { user } = await getAdminUser();
+    const adminClient = createAdminClient();
+
+    // Only students can be hard-deleted; admins are managed separately.
+    const { data: profile, error: profileError } = await adminClient
+      .from("profiles")
+      .select("id, role, display_name, email")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      return { success: false, error: "User not found." };
+    }
+
+    if (profile.role === "admin") {
+      return { success: false, error: "Admin accounts cannot be deleted from here." };
+    }
+
+    // Deleting the auth.users row cascades to public.profiles and every
+    // dependent student record (user_courses, student_access,
+    // lesson_progress). Token ownership and audit references are released
+    // via ON DELETE SET NULL — no orphaned rows remain.
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+
+    if (deleteError) {
+      // Auth user may already be gone; still remove the profile so the
+      // student records cascade cleanly.
+      const { error: profileDeleteError } = await adminClient
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+
+      if (profileDeleteError) {
+        return { success: false, error: `Failed to delete user: ${deleteError.message}` };
+      }
+    }
+
+    await adminClient.from("audit_logs").insert({
+      admin_id: user.id,
+      action: "user_deleted",
+      entity_type: "profiles",
+      entity_id: userId,
+      metadata: { display_name: profile.display_name, email: profile.email },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true, data: undefined };
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : "Unknown error" };
+  }
+}
+
+// ============================================================
 // GET ADMIN STATS
 // ============================================================
 
@@ -168,6 +225,8 @@ export async function getAdminStats() {
     await getAdminUser();
     const adminClient = createAdminClient();
 
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
     const [
       { count: totalCourses },
       { count: publishedCourses },
@@ -175,6 +234,8 @@ export async function getAdminStats() {
       { count: totalLessons },
       { count: activeTokens },
       { count: totalStudents },
+      { count: activeStudents },
+      { count: tokensRedeemed },
     ] = await Promise.all([
       adminClient.from("courses").select("*", { count: "exact", head: true }),
       adminClient.from("courses").select("*", { count: "exact", head: true }).eq("status", "published"),
@@ -182,6 +243,11 @@ export async function getAdminStats() {
       adminClient.from("lessons").select("*", { count: "exact", head: true }),
       adminClient.from("access_tokens").select("*", { count: "exact", head: true }).eq("is_active", true),
       adminClient.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+      adminClient
+        .from("student_access")
+        .select("*", { count: "exact", head: true })
+        .gte("last_seen_at", thirtyDaysAgo),
+      adminClient.from("access_tokens").select("*", { count: "exact", head: true }).not("bound_user_id", "is", null),
     ]);
 
     return {
@@ -193,6 +259,8 @@ export async function getAdminStats() {
         total_lessons: totalLessons ?? 0,
         active_tokens: activeTokens ?? 0,
         total_students: totalStudents ?? 0,
+        active_students: activeStudents ?? 0,
+        tokens_redeemed: tokensRedeemed ?? 0,
       },
     };
   } catch (e: unknown) {

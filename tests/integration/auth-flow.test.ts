@@ -573,6 +573,103 @@ describe("Auth flow — token redemption", () => {
     });
   });
 
+  // ── Redemption grants an existing (not token-created) account ──
+
+  describe("redemption grants an existing student account", () => {
+    const localIds = {
+      users: <string[]>[],
+      courses: <string[]>[],
+      modules: <string[]>[],
+      lessons: <string[]>[],
+      tokens: <string[]>[],
+    };
+    const testId = Date.now().toString(36);
+    let rawToken: string;
+    let student: TestUser;
+
+    beforeAll(async () => {
+      if (!isIntegrationTestEnv) return;
+      // A pre-existing student account — created INDEPENDENTLY of the token.
+      student = await createTestUser(
+        svc,
+        `existing-${testId}`,
+        "passExisting123!",
+        "student"
+      );
+      localIds.users.push(student.id);
+      globalIds.users.push(student.id);
+
+      const admin = await createTestUser(
+        svc,
+        `existing-admin-${testId}`,
+        "adminPass!",
+        "admin"
+      );
+      localIds.users.push(admin.id);
+      globalIds.users.push(admin.id);
+
+      const course = await seedTestCourse(svc, `existing-${testId}`);
+      localIds.courses.push(course.courseId);
+      localIds.modules.push(course.moduleId);
+      localIds.lessons.push(course.lessonId);
+      globalIds.courses.push(course.courseId);
+      globalIds.modules.push(course.moduleId);
+      globalIds.lessons.push(course.lessonId);
+
+      // Token generated independently (no auth user created).
+      const token = await createTestToken(
+        svc,
+        `existing-${testId}`,
+        [course.courseId],
+        admin.id
+      );
+      rawToken = token.rawToken;
+      localIds.tokens.push(token.tokenId);
+      globalIds.tokens.push(token.tokenId);
+    });
+
+    it("existing account receives the token's courses and binds it", async () => {
+      if (!isIntegrationTestEnv) return;
+      const tokenHash = await hashToken(rawToken);
+      const { data, error } = await svc.rpc("redeem_access_token", {
+        p_token_hash: tokenHash,
+        p_user_id: student.id,
+      });
+
+      expect(error).toBeNull();
+      expect(data).not.toBeNull();
+      expect(data.success).toBe(true);
+
+      // The token is now bound to the existing student.
+      const { data: token } = await svc
+        .from("access_tokens")
+        .select("bound_user_id")
+        .eq("id", localIds.tokens[0])
+        .single();
+      expect(token?.bound_user_id).toBe(student.id);
+
+      // Access granted to that same account.
+      const { data: uc } = await svc
+        .from("user_courses")
+        .select("course_id")
+        .eq("user_id", student.id);
+      expect(uc).not.toBeNull();
+      expect(uc!.some((r: any) => r.course_id === localIds.courses[0])).toBe(true);
+    });
+
+    afterAll(async () => {
+      if (!isIntegrationTestEnv) return;
+      await cleanupAuthFlowData(
+        svc,
+        localIds.users,
+        localIds.courses,
+        localIds.modules,
+        localIds.lessons,
+        localIds.tokens
+      );
+    });
+  });
+
   // ── Single-owner token binding ──────────────────────────────
 
   describe("single-owner binding", () => {

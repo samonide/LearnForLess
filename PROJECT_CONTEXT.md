@@ -19,7 +19,7 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 
 ## Admin portal
 
-- Token management at `/admin/tokens` — list, generate, toggle active, edit, delete, manage token<->course links. Generation creates `access_tokens` row + Supabase Auth user (`email = token-id@tokens.local` via `buildStudentTokenLoginEmail`) + `token_courses` + `user_courses` + `student_access` + `profiles` + `audit_logs`.
+- Token management at `/admin/tokens` — list, generate, toggle active, edit, delete, manage token<->course links. Generation creates `access_tokens` row (token_hash, token_hint, created_by, name, etc.) + `token_courses` + `audit_logs`. Does NOT create auth users, profiles, user_courses, or student_access. `bound_user_id` is NULL until a student redeems.
 - Course/module/lesson CRUD, user management, course builder with reordering, cover image upload.
 - Admin dashboard with metrics (Courses, Modules, Lessons, Active Tokens, Students).
 - Settings page.
@@ -40,7 +40,8 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 - Access tokens: `access_tokens` stores only `token_hash` (never raw token). Raw token shown once at generation. RPC `redeem_access_token(p_token_hash, p_user_id)` grants access. After migration 002, tokens have `bound_user_id` (FK -> `profiles.id ON DELETE SET NULL`) enforcing single-owner binding; RPC updated to enforce `token_assigned_to_another_student`. `student_access(token_id)` is now `UNIQUE`.
 - Student username/password login: `profiles.username` (partial unique index, migration 003) + synthetic email `student-{username}@learnforless.local`. Accounts must first be created via Supabase Auth `admin.createUser` (server action `registerStudent`), then profile upsert with username. Login resolves username -> profile id, then signs in with derived email. Password never stored plaintext — Supabase Auth handles hashing.
 - `/login` = username+password sign-in; `/register` = create account; dashboard = inline token redemption for authenticated students. Legacy standalone `/access` flow removed (2026-08-19).
-- Authenticated token redemption: `redeemTokenAuthenticated()` in `src/actions/student/access.ts` — gets current user from session, validates token, calls `redeem_access_token` RPC which binds token, assigns courses, upserts profile. `TokenRedeemForm` on dashboard.
+- Authenticated token redemption: `redeemTokenAuthenticated()` in `src/actions/student/access.ts` — gets current user from session, validates token, calls `redeem_access_token` RPC which binds token to the existing student (`bound_user_id`), assigns courses, upserts profile. `TokenRedeemForm` on dashboard. Generation and redemption are fully separate; redemption never gets a token-created account.
+- Manual course grant: `grantCourseAccess()` in `src/actions/admin/users.ts` uses the authenticated client from `getAdminUser()` to call `grant_course_access_admin` RPC (which authorizes via `auth.uid()` plus profiles role check).
 - Password recovery: `recovery_tokens` table (migration 004) stores only SHA-256 `token_hash` + `username` + `expires_at` (24h) + `used_at` (single-use), admin-only RLS. Admin issues one-time token at `/admin/users`. Student consumes at `/recover` (username + token + new password). Enumeration-safe (unknown usernames return fake success).
 - Auth redirects handled by Next.js proxy (middleware): unauthenticated → /login, /admin → /admin/login.
 - Migrations 003, 004, 005 applied to hosted Supabase and verified.
@@ -51,7 +52,7 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 
 ## Media architecture (current, verified 2026-08-19)
 
-External URLs are the primary media source. Video = third-party M3U8/HLS URLs. PDF/downloadable/code = direct Backblaze URLs. GoFile = backup for PDF/code. All stored in `lessons.content`. `lessons.storage_path` is an admin-upload path for Supabase Storage — secondary source. Client-side: `signed_url || content` (signed URL from storage takes precedence when present). No provider names in code — only in DB data. Course-builder lesson modal enforces single media source via "External URL" / "Upload File" toggle. Video playback: hls.js for M3U8/HLS, native for MP4. Signed URLs from Supabase Storage expire after 1 hour (no refresh logic yet).
+External URLs are the primary media source. Video = third-party M3U8/HLS URLs. PDF/downloadable/code = direct Backblaze URLs. GoFile = backup for PDF/code. All stored in `lessons.content`. `lessons.storage_path` is an admin-upload path for Supabase Storage — secondary source. Client-side: `signed_url || content` (signed URL from storage takes precedence when present). No provider names in code — only in DB data. Course-builder lesson modal enforces single media source via "External URL" / "Upload File" toggle. Video playback: Video.js with @videojs/http-streaming for HLS, fallback for MP4. Dark theme. Signed URLs from Supabase Storage expire after 1 hour (no refresh logic yet).
 
 ## Database / storage
 
@@ -89,10 +90,15 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 - Phase 3: UI/UX Redesign — COMPLETE. All surfaces redesigned and Playwright-visual-QA'd.
 - Phase 4: CMS Functional Completion — COMPLETE. All CMS → student workflows operational. No Category 1-2 blockers.
 - Phase 5: Security Foundation — COMPLETE. Migration 005 applied. 57 integration tests + 11 Playwright E2E tests, all passing.
+- UI-A: Navigation + Edge States — COMPLETE (2026-08-20). Admin sidebar active nav state, 13 loading/error/not-found boundary files. 11 Playwright E2E tests verify all surfaces.
+- UI-B: Responsive + Accessibility — COMPLETE (2026-08-20). Admin mobile sidebar (Sheet drawer), table overflow-x-auto on 5 tables, 44px touch targets, auth card padding, viewport meta, focus indicators, dashboard cards at 320px, lesson viewer Sheet overflow fix.
+- UI-C: Design Consistency — COMPLETE (2026-08-20). All ring→border replacements (16 files), decorative "CMS"/"Admin" labels removed, section label typography fixed per DESIGN.md. `tsc --noEmit` + `npm run build` pass.
 - Course overview page: `/course/[courseId]` displays header, progress bar, modules/lessons list with completion state.
-- Video progress/resume: hls.js player, throttled timeupdate (15s), seek to last_position, cap at 99%.
+- Video progress/resume: Video.js player with dark theme, throttled timeupdate (15s), seek to last_position, cap at 99%. HLS via @videojs/http-streaming, MP4 via native. `fill: true` + wrapper `aspect-video` + `key={lessonId}` remount on nav (fixed first-nav/controls bugs).
+- PDF viewer: react-pdf with page navigation, zoom (0.5x-2.5x), fullscreen, download. Dark-theme integrated.
 - Student lesson breadcrumb: module title + "Lesson N of M".
 - Legacy code removed: `lesson-content.tsx`, `/access` flow, unauthenticated `redeemToken()`.
+- UI-E: Design Polish + Micro-interactions — COMPLETE (2026-08-20). Progress bar animation (500ms), skeleton component (video/pdf), Sonner toast theming, dashboard empty-state illustration (SVG). All verified `tsc --noEmit` + `npm run build`.
 - `tsc --noEmit` passes. `npm run build` passes.
 
 ## Known limitations / unresolved
@@ -102,6 +108,7 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 - Dashboard N+1 query: `getNextUnfinishedLesson()` called per-course in a loop.
 - Signed URL expiration: 1-hour expiry from Supabase Storage, no refresh logic.
 - No admin progress visibility in UI (requires DB query).
+- PDF/text scroll tracking.
 - No PDF/text scroll tracking.
 - No orphaned storage file cleanup (file remains when source toggled away).
 - No student registration rate limiting.

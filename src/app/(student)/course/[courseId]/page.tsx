@@ -22,7 +22,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="text-center space-y-4 max-w-md bg-card border border-border rounded-xl p-8">
-          <div className="w-12 h-12 rounded-xl bg-destructive/10 ring-1 ring-destructive/20 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-destructive/10 border border-border flex items-center justify-center mx-auto">
             <BookOpen className="w-6 h-6 text-destructive" />
           </div>
           <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
@@ -118,7 +118,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         <li key={les.id}>
                           <Link
                             href={`/course/${courseId}/lesson/${les.id}`}
-                            className="flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-colors"
+                            className="flex items-center gap-3 px-6 py-3.5 hover:bg-muted/50 transition-colors no-underline"
                           >
                             <span className="shrink-0">
                               {isCompleted ? (

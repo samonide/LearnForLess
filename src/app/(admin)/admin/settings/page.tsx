@@ -1,7 +1,11 @@
-import { ShieldCheck, Database, HardDrive } from "lucide-react";
+import { ShieldCheck, Database, HardDrive, Palette } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getSiteSettings } from "@/lib/site-settings";
+import SiteSettingsForm from "./site-settings-form";
 
 export default async function AdminSettingsPage() {
+  const settings = await getSiteSettings();
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
@@ -18,11 +22,27 @@ export default async function AdminSettingsPage() {
 
       {/* Settings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Site Settings */}
+        <section className="border border-border bg-card rounded-xl md:col-span-2">
+          <header className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                <Palette className="w-4 h-4 text-primary" />
+                Site Branding
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Name, tagline, logo, footer, and support contact shown to students.
+              </p>
+            </div>
+          </header>
+          <SiteSettingsForm initial={settings} />
+        </section>
+
         {/* Core Config */}
         <section className="border border-border bg-card rounded-xl">
           <header className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
+              <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
                 <Database className="w-4 h-4 text-primary" />
                 General Configuration
               </h2>
@@ -32,12 +52,6 @@ export default async function AdminSettingsPage() {
             </div>
           </header>
           <div className="p-5 space-y-4">
-            <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-foreground block">Platform Branding Name</span>
-              <span className="text-sm text-muted-foreground block bg-muted/30 px-3 py-2 rounded border border-border">
-                {process.env.NEXT_PUBLIC_APP_NAME || "LearnForLess"}
-              </span>
-            </div>
             <div className="space-y-1.5">
               <span className="text-xs font-semibold text-foreground block">Production Base URL</span>
               <span className="text-sm text-muted-foreground block bg-muted/30 px-3 py-2 rounded border border-border font-mono">
@@ -50,7 +64,7 @@ export default async function AdminSettingsPage() {
         {/* Storage Metrics Info */}
         <section className="border border-border bg-card rounded-xl">
           <header className="px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <HardDrive className="w-4 h-4 text-primary" />
               Media Storage Bucket
             </h2>
@@ -82,7 +96,7 @@ export default async function AdminSettingsPage() {
         {/* Security Guidelines */}
         <section className="border border-border bg-card rounded-xl md:col-span-2">
           <header className="px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <ShieldCheck className="w-4 h-4 text-primary" />
               Access Security Audit Constraints
             </h2>

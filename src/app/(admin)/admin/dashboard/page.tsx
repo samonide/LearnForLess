@@ -36,6 +36,8 @@ export default async function AdminDashboardPage() {
     total_lessons: 0,
     active_tokens: 0,
     total_students: 0,
+    active_students: 0,
+    tokens_redeemed: 0,
   };
 
   const auditLogs = auditLogsResult.success ? auditLogsResult.data : [];
@@ -53,16 +55,15 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Metrics Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-border rounded-xl overflow-hidden border border-border">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
         {[
-          { label: "Courses", value: stats.total_courses, sub: `${stats.published_courses} published` },
-          { label: "Modules", value: stats.total_modules, sub: "Across all courses" },
-          { label: "Lessons", value: stats.total_lessons, sub: "Published + draft" },
-          { label: "Active Tokens", value: stats.active_tokens, sub: "Valid access codes" },
-          { label: "Students", value: stats.total_students, sub: "Redeemed accounts" },
+          { label: "Total Students", value: stats.total_students, sub: "Registered accounts" },
+          { label: "Active Students", value: stats.active_students, sub: "Active in last 30 days" },
+          { label: "Total Courses", value: stats.total_courses, sub: `${stats.published_courses} published` },
+          { label: "Tokens Redeemed", value: stats.tokens_redeemed, sub: "Codes bound to students" },
         ].map((item) => (
           <div key={item.label} className="bg-card p-5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <div className="text-xs font-medium text-foreground">
               {item.label}
             </div>
             <div className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
@@ -90,6 +91,7 @@ export default async function AdminDashboardPage() {
               No token redemptions recorded yet.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -129,6 +131,7 @@ export default async function AdminDashboardPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </section>
 
@@ -147,6 +150,7 @@ export default async function AdminDashboardPage() {
               No administrative activity logged yet.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -183,6 +187,7 @@ export default async function AdminDashboardPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </section>
       </div>

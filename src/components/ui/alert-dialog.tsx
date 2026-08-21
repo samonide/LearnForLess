@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 function AlertDialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -42,7 +43,7 @@ function AlertDialogContent({
       <DialogPrimitive.Popup
         data-slot="alert-dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-6 text-popover-foreground shadow-modal ring-1 ring-foreground/10 outline-none",
+          "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-6 text-popover-foreground shadow-modal border border-border outline-none",
           className
         )}
         {...props}
@@ -71,9 +72,11 @@ function AlertDialogDescription({ className, ...props }: DialogPrimitive.Descrip
 
 function AlertDialogCancel({ className, ...props }: DialogPrimitive.Close.Props) {
   return (
-    <DialogPrimitive.Close data-slot="alert-dialog-cancel" {...props}>
-      <Button variant="outline" className={className} {...props} />
-    </DialogPrimitive.Close>
+    <DialogPrimitive.Close
+      data-slot="alert-dialog-cancel"
+      className={cn(buttonVariants({ variant: "outline" }), className)}
+      {...props}
+    />
   )
 }
 

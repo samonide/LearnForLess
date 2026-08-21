@@ -66,6 +66,7 @@ export default async function AdminTokensPage() {
             </Link>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
@@ -153,6 +154,7 @@ export default async function AdminTokensPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
     </div>

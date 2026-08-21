@@ -78,7 +78,7 @@ export default function RecoverPage() {
   }
 
   return (
-    <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 md:p-10 space-y-6">
+    <div className="w-full max-w-md bg-card border border-border rounded-xl p-6 sm:p-8 md:p-10 space-y-6">
       <div className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Reset Your Password

@@ -76,9 +76,21 @@ export async function redeemTokenAuthenticated(
       };
     }
 
+    // Fetch course names for the redeemed courses
+    const courseIds = result.course_ids ?? [];
+    let courseNames: string[] | undefined;
+    if (courseIds.length > 0) {
+      const { data: courses } = await adminClient
+        .from("courses")
+        .select("title")
+        .in("id", courseIds);
+      courseNames = courses?.map((c) => c.title) ?? undefined;
+    }
+
     return {
       success: true,
-      courseIds: result.course_ids ?? [],
+      courseIds,
+      courseNames,
     };
   } catch (e) {
     return { success: false, error: "unknown_error" };

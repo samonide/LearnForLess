@@ -86,6 +86,7 @@ export default async function AdminCoursesPage() {
             </Link>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
@@ -166,6 +167,7 @@ export default async function AdminCoursesPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
     </div>

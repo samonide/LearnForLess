@@ -61,10 +61,6 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error("Please enter a student account name.");
-      return;
-    }
     if (selectedCourses.length === 0) {
       toast.error("Please select at least one course.");
       return;
@@ -109,18 +105,21 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Name */}
+        {/* Name / Reference */}
         <div className="space-y-1.5">
-          <Label htmlFor="token-name">Token Name *</Label>
+          <Label htmlFor="token-name">Reference Name</Label>
           <Input
             id="token-name"
             type="text"
-            placeholder="e.g. John Carter"
+            placeholder="e.g. Foundation batch — optional admin note"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isPending}
-            required
           />
+          <span className="block text-[10px] text-muted-foreground">
+            Optional. An internal label to help identify this token. This will never affect the
+            claimant&apos;s account name.
+          </span>
         </div>
 
         {/* Description */}
@@ -209,7 +208,7 @@ export default function NewTokenForm({ courses }: NewTokenFormProps) {
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={isPending || !name.trim()}>
+          <Button type="submit" disabled={isPending}>
             {isPending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

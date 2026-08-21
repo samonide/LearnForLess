@@ -218,6 +218,34 @@ describe("grant_course_access_admin (fix 2: auth.uid() authorization)", () => {
     expect(data.success).toBe(true);
   });
 
+  it("admin grant actually grants the student access", async () => {
+    if (!isIntegrationTestEnv) return;
+    const student = localIds.users[0];
+    const courseId = localIds.courses[0];
+    const aClient = await createAuthedClient(
+      `test-grant-admin@learnforless.test`,
+      "passG456!"
+    );
+
+    const { data, error } = await aClient.rpc("grant_course_access_admin", {
+      p_user_id: student,
+      p_course_id: courseId,
+      p_expires_at: null,
+    });
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+
+    // Verify the user_courses row now exists for that student+course.
+    const { data: uc } = await svc
+      .from("user_courses")
+      .select("course_id")
+      .eq("user_id", student)
+      .eq("course_id", courseId)
+      .maybeSingle();
+    expect(uc).not.toBeNull();
+    expect(uc?.course_id).toBe(courseId);
+  });
+
   afterAll(async () => {
     if (!isIntegrationTestEnv) return;
     await cleanupTestData(svc, localIds.users, localIds.courses, localIds.modules, localIds.lessons);
