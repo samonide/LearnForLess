@@ -1,9 +1,8 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { hashToken, generateRecoveryTokenString, buildStudentLoginEmail } from "@/lib/utils";
+import { hashToken, generateRecoveryTokenString } from "@/lib/utils";
 import type { RecoveryResult, GenerateRecoveryResult } from "@/types";
-import { revalidatePath } from "next/cache";
 
 // ============================================================
 // ADMIN: GENERATE RECOVERY TOKEN
@@ -131,7 +130,7 @@ export async function resetPasswordWithRecoveryToken(
     .from("recovery_tokens")
     .update({ used_at: new Date().toISOString() })
     .eq("id", token.id)
-    .eq("used_at", null); // race guard
+    .is("used_at", null); // race guard
 
   if (markError) {
     return { success: false, error: "unknown_error" };
@@ -149,8 +148,6 @@ export async function resetPasswordWithRecoveryToken(
   }
 
   // Reset the password via Supabase Auth admin API
-  const loginEmail = buildStudentLoginEmail(normalized);
-
   const { error: updateError } = await adminClient.auth.admin.updateUserById(
     profile.id,
     { password: newPassword }

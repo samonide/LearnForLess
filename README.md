@@ -28,8 +28,9 @@ npm run dev                        # http://localhost:3000
 
 ## Tests
 
-- **Integration tests** (57): `tests/integration/` — auth-flow, authz-security, CMS CRUD. Requires live Supabase instance with `.env.local` configured.
-- **E2E tests** (11): `tests/e2e/` — auth-flow, token-redemption, student-courses, admin. Requires `npm run dev` running (auto-started by Playwright webServer). See `tests/README.md` for setup.
+- **Unit tests** (11): `tests/unit/` — importer parser and B2 presigning.
+- **Integration tests** (85): `tests/integration/` — auth-flow, authz-security, CMS CRUD, token generation, importer (import/re-import/source resolution). Requires live Supabase instance with `.env.local` configured. Total Vitest suite: 96 tests.
+- **E2E tests** (28): `tests/e2e/` — auth-flow, token-redemption, student-courses, admin, phase-a-verify, lesson-editor-visual, view-access-visual. Requires `npm run dev` running (auto-started by Playwright webServer). See `tests/README.md` for setup.
 
 ## Supabase
 
@@ -39,7 +40,9 @@ Migrations under `supabase/migrations/`. Apply in Supabase Dashboard → SQL Edi
 2. `002_token_student_accounts.sql` — `access_tokens.bound_user_id`, single-owner binding
 3. `003_username_auth.sql` — `profiles.username` partial unique index for student login
 4. `004_recovery_tokens.sql` — password recovery tokens (hashed, single-use, 24h expiry)
-5. `005_security.sql` — RPC RLS guards, simplified admin grant, lesson_progress UPDATE policy
+5. `005_security_fixes.sql` — RPC RLS guards, simplified admin grant, lesson_progress UPDATE policy
+6. `006_site_settings.sql` — `site_settings` singleton (branding: site name, slogan, logo, footer, support email)
+7. `007_course_imports.sql` — importer source columns on courses/modules/lessons + `course_imports` bookkeeping table
 
 Optional: `seed.sql` — sample data.
 

@@ -30,11 +30,13 @@ When a token is redeemed successfully, show a popup/card with a congratulations 
 
 ## Medium
 
-### 5. Admin Sidebar Not Sticky (Solved)
+### ~~5. Admin Sidebar Not Sticky~~
 In admin panel, the left sidebar scrolls with page content. When editing a course with many modules/lessons, the sidebar scrolls off-screen, leaving empty space. Sidebar should be sticky to its container.
+(SOLVED)
 
-### 9. Mark As Complete → Auto-Advance to Next Lesson (solved)
+### ~~9. Mark As Complete → Auto-Advance to Next Lesson~~
 Clicking "Mark as Complete" on a lesson should automatically navigate to the next lesson in the course.
+(SOLVED)
 
 ### ~~6. Redesign Add Lesson UI~~
 The "Add Lesson" popup is too small for a feature this important. Should be a larger dialog or a dedicated page with all essential options (title, description, content type, video URL, PDF upload, etc.).
@@ -44,8 +46,9 @@ The "Add Lesson" popup is too small for a feature this important. Should be a la
 
 ## Hard
 
-### 4. Admin Panel Needs More Features
-Admin panel needs user management features (delete user, etc.) and other mandatory admin tools. Scope needs definition.
+### 4. Admin Panel Needs More Features (PARTIALLY SOLVED)
+Admin panel needs user management features and other mandatory admin tools.
+(PARTIALLY SOLVED — Admin Accounts page at `/admin/admins` now covers promote/demote with last-admin protection. Remaining: e.g. user deletion. Scope still needs definition.)
 
 ### 7. Multi-Supabase DB Support
 Admin should be able to add multiple Supabase DB connections with custom credentials, category labels (code/pdf), and named identifiers (e.g. "codebase1", "pdfdb1"). Upload flow should let admins choose which DB to upload to, with per-connection credential storage and schema setup.

@@ -18,9 +18,13 @@ Living roadmap. Read with `PROJECT_CONTEXT.md` at session start.
 - Phase DBI-3 — Media / Source Resolution COMPLETE (2026-08-21): B2 presigned URL generation via `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`. `getLessonContent()` resolves B2 sources at view time, returning via existing `signed_url` field. No viewer/schema changes. 10 focused tests (7 unit + 3 integration) pass.
 - Phase DBI-4 — Re-Import Engine COMPLETE (2026-08-21): `executeImport()` incremental + replacement modes. Incremental matches modules by `source_chapter_num`, lessons by `source_fingerprint`, adds missing only. Replacement preserves course row/access/manual data, recreates imported modules/lessons. Manual rollback in both. `importCourse()` accepts `mode` form field. 13 new integration tests added (6 incremental + 7 replacement); full suite deferred until DBI-5.
 - Phase DBI-5 — Auto Course Importer UI COMPLETE (2026-08-22): admin sidebar item, `/admin/import` page with upload/inspection/import workflow, `parseImport()` server action, incremental vs replacement modes with confirmation dialog.
-- `tsc --noEmit` passes. `npm run build` passes.
-- 11 Playwright E2E tests (4 spec files) — all pass.
-- `tsc --noEmit` passes. `npm run build` passes.
+- Site Settings + Admin Accounts shipped (2026-08-21, commit acda197): migration 006 (`site_settings` singleton), branding consumed by all layouts via `getSiteSettings()`, `updateSiteSettings()` server action with validation, `/admin/settings` form; `/admin/admins` page for promote/demote with last-admin protection (`src/actions/admin/admins.ts`).
+- Full project audit (2026-08-22): docs reconciled with code. See PROJECT_CONTEXT.md Verified section.
+- Recovery token fix (2026-08-22): `/recover` was fully broken — `resetPasswordWithRecoveryToken` used `.eq("used_at", null)` as its single-use race guard; PostgREST rejects the `eq.null` cast on timestamptz with a 400, so every redemption returned `unknown_error` before reaching the password update. Fixed to `.is("used_at", null)`. New `tests/integration/recovery-token.test.ts`: 5 tests (successful reset verified by real sign-in, unknown token, reuse blocked, wrong username, expired). Dead code removed: 3 stale component duplicates in `src/components/`.
+- `tsc --noEmit` passes. `npm run build` passes (23 routes).
+- Vitest: 101 tests pass against live hosted Supabase (90 integration across 8 files + 11 unit across 2 files).
+- Playwright E2E: 28 tests across 7 spec files (auth-flow, token-redemption, student-courses, admin, phase-a-verify, lesson-editor-visual, view-access-visual).
+- Lint: 61 errors / 52 warnings pre-existing, unaddressed.
 
 ## COMPLETED WORK
 
@@ -120,7 +124,7 @@ Fix regression where token generation created phantom auth users and manual cour
 - `tests/integration/authz-security.test.ts`: +1 test ("admin grant actually grants the student access" — verifies `user_courses` row after admin grant).
 - Total: 65 integration tests, all pass against live hosted Supabase.
 
-**Verification:** `tsc --noEmit` passes. `npm run build` passes adjective `npm test` (65 tests) all pass.
+**Verification:** `tsc --noEmit` passes. `npm test` (65 tests) all pass.
 
 **Status:** COMPLETE (2026-08-20).
 
@@ -324,21 +328,6 @@ Required before publishing: YES.
 
 ### Phase 7 — Product Features (HIGH-VALUE)
 
-Purpose: Address the minimum requirements to publish this application.
-
-Tasks:
-- Verify migration 005 was applied to hosted Supabase (SQL Editor confirmation)
-- Verify auth proxy works in production deployment
-- Create DEPLOYMENT.md: Supabase project setup, required env vars, migration order, storage bucket config, Vercel/deployment steps
-- Create tests/README.md: how to run Playwright tests, integration tests, test DB setup, environment variables
-- Review/update .env.local.example for production
-- Update README.md with current test suite and migration info
-
-Dependencies: None. All code work is done.
-Required before publishing: YES.
-
-### Phase 7 — Product Features (HIGH-VALUE)
-
 Purpose: Address real usability gaps that improve the product experience.
 
 Tasks:
@@ -457,4 +446,4 @@ Service-role key server-only; never expose password/token/recovery hashes; serve
 
 ## Next session prompt
 
-"Continue LearnForLess development. Read PROJECT_CONTEXT.md and IMPLEMENTATION_PLAN.md. All phases through Phase 5 (Security Foundation) are complete. The next work is Phase 6 (Product Completion — REQUIRED BEFORE PUBLISHING). Do NOT skip to Phases 7-9. Do not redo completed work."
+"Continue LearnForLess development. Read PROJECT_CONTEXT.md and IMPLEMENTATION_PLAN.md. Phases 0-5, the UI workstream (UI-A..UI-E), and DBI-1..5 are complete; site settings/branding and admin accounts management have also shipped. The next work is Phase 6 (Product Completion — REQUIRED BEFORE PUBLISHING: DEPLOYMENT.md, tests/README.md, deployment verification). Do NOT skip to Phases 7-8. Do not redo completed work."

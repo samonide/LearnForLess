@@ -14,15 +14,18 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 
 - App Router. Admin routes under `src/app/(admin)/admin/*` (`/admin/tokens`, `/admin/courses`, `/admin/users`, etc). Student routes under `(student)`. Public routes under `(public)`.
 - Server Actions in `src/actions/*`, Supabase helpers in `src/lib/supabase/*`, UI in `src/components/ui/*`.
-- DB: `supabase/migrations/001_schema.sql` (full), `002_token_student_accounts.sql` (token binding), `003_username_auth.sql` (username login), `004_recovery_tokens.sql` (password recovery), `005_security.sql` (RPC/RLS security fixes). Optional `seed.sql`.
+- DB: `supabase/migrations/001_schema.sql` (full), `002_token_student_accounts.sql` (token binding), `003_username_auth.sql` (username login), `004_recovery_tokens.sql` (password recovery), `005_security_fixes.sql` (RPC/RLS security fixes), `006_site_settings.sql` (site_settings singleton for branding), `007_course_imports.sql` (importer source columns + course_imports bookkeeping). Optional `seed.sql`.
 - `src/types/database.ts` is currently `Database = any` placeholder, not generated types.
 
 ## Admin portal
 
+- Sidebar nav (7 items): Dashboard, Courses, Access Tokens, User Directory, Auto Course Importer, Admin Accounts, Settings.
 - Token management at `/admin/tokens` — list, generate, toggle active, edit, delete, manage token<->course links. Generation creates `access_tokens` row (token_hash, token_hint, created_by, name, etc.) + `token_courses` + `audit_logs`. Does NOT create auth users, profiles, user_courses, or student_access. `bound_user_id` is NULL until a student redeems.
 - Course/module/lesson CRUD, user management, course builder with reordering, cover image upload.
+- Auto Course Importer at `/admin/import` — upload SQLite `.db`, inspect parsed preview, incremental or replacement import (DBI phases).
+- Admin Accounts at `/admin/admins` — list admins, search students, promote/demote roles (`src/actions/admin/admins.ts`). Server-side guard: cannot demote the last admin.
+- Site settings at `/admin/settings` — branding fields (site_name, slogan, logo_url, footer_text, support_email) written to `site_settings` singleton via `updateSiteSettings()`. Consumed by all layouts via `getSiteSettings()` in `src/lib/site-settings.ts`; public read policy, admin-only update (`is_admin()`).
 - Admin dashboard with metrics (Courses, Modules, Lessons, Active Tokens, Students).
-- Settings page.
 
 ## Student portal
 
@@ -42,7 +45,7 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 - `/login` = username+password sign-in; `/register` = create account; dashboard = inline token redemption for authenticated students. Legacy standalone `/access` flow removed (2026-08-19).
 - Authenticated token redemption: `redeemTokenAuthenticated()` in `src/actions/student/access.ts` — gets current user from session, validates token, calls `redeem_access_token` RPC which binds token to the existing student (`bound_user_id`), assigns courses, upserts profile. `TokenRedeemForm` on dashboard. Generation and redemption are fully separate; redemption never gets a token-created account.
 - Manual course grant: `grantCourseAccess()` in `src/actions/admin/users.ts` uses the authenticated client from `getAdminUser()` to call `grant_course_access_admin` RPC (which authorizes via `auth.uid()` plus profiles role check).
-- Password recovery: `recovery_tokens` table (migration 004) stores only SHA-256 `token_hash` + `username` + `expires_at` (24h) + `used_at` (single-use), admin-only RLS. Admin issues one-time token at `/admin/users`. Student consumes at `/recover` (username + token + new password). Enumeration-safe (unknown usernames return fake success).
+- Password recovery: `recovery_tokens` table (migration 004) stores only SHA-256 `token_hash` + `username` + `expires_at` (24h) + `used_at` (single-use), admin-only RLS. Admin issues one-time token at `/admin/users`. Student consumes at `/recover` (username + token + new password). Enumeration-safe (unknown usernames return fake success). FIXED 2026-08-22: mark-as-used filter used `.eq("used_at", null)` (invalid PostgREST cast → every redemption failed with `unknown_error`); now `.is("used_at", null)`. Regression coverage in `tests/integration/recovery-token.test.ts` (5 tests incl. real sign-in verification).
 - Auth redirects handled by Next.js proxy (middleware): unauthenticated → /login, /admin → /admin/login.
 - Migrations 003, 004, 005 applied to hosted Supabase and verified.
 
@@ -103,12 +106,11 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 
 ## Known limitations / unresolved
 
-- Pre-existing lint issues (54 errors, 35 warnings) not addressed.
+- Pre-existing lint issues (61 errors, 52 warnings as of 2026-08-22) not addressed.
 - Generated Supabase types not in use (`Database = any`).
 - Dashboard N+1 query: `getNextUnfinishedLesson()` called per-course in a loop.
 - Signed URL expiration: 1-hour expiry from Supabase Storage, no refresh logic.
 - No admin progress visibility in UI (requires DB query).
-- PDF/text scroll tracking.
 - No PDF/text scroll tracking.
 - No orphaned storage file cleanup (file remains when source toggled away).
 - No student registration rate limiting.
@@ -121,6 +123,8 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 - Phase DBI-3 — Media/source resolution COMPLETE (2026-08-21): B2 presigned URL generation for imported PDF/code files; `getLessonContent()` resolves via `signed_url` with Buzzheavier fallback; no viewer/schema changes. 10 resolve-source tests pass (7 unit + 3 integration). `tsc --noEmit` + `npm run build` pass.
 - Phase DBI-4 — Re-Import Engine COMPLETE (2026-08-21): `executeImport()` incremental (modules by `source_chapter_num`, lessons by `source_fingerprint`, add missing only) + replacement (preserves course row/manual data, recreates imported modules/lessons) modes. Manual rollback both. `importCourse()` accepts `mode`. 13 new integration tests (6+7). `tsc --noEmit` + `npm run build` pass. Full test suite deferred until DBI-5.
 - Phase DBI-5 — Auto Course Importer UI COMPLETE (2026-08-22): Admin sidebar nav item + `/admin/import` page. `parseImport()` server action (read-only, no DB writes). Upload/inspection/import workflow: dropzone, course preview (source ID/type, module/lesson counts by type, module list, warnings), incremental vs replacement import with AlertDialog confirmation, success summary with course builder link. Reuses DBI-2/DBI-4 actions. `tsc --noEmit` + `npm run build` pass.
+- Full project audit (2026-08-22): `tsc --noEmit` passes; `npm run build` passes (23 routes); all 96 Vitest tests pass against live Supabase (85 integration + 11 unit); E2E suite is 28 tests across 7 spec files. Docs reconciled with code (migrations 006/007, site settings branding, admin accounts page, test counts).
+- Recovery token fix + dead code removal (2026-08-22): root-caused broken `/recover` flow (PostgREST `.eq("used_at", null)` cast error), fixed to `.is()`, added `tests/integration/recovery-token.test.ts` (5 tests). Deleted 3 stale component duplicates in `src/components/` (764 lines). Full suite: 101 Vitest tests pass. `tsc --noEmit` + `npm run build` pass.
 
 ## Conventions
 
