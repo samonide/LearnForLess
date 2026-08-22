@@ -24,8 +24,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
     redirect("/dashboard");
   }
 
-  // 2. Fetch selected lesson content details
-  const lessonResult = await getLessonContent(lessonId);
+  // 2. Fetch selected lesson content details (validated against courseId)
+  const lessonResult = await getLessonContent(lessonId, courseId);
 
   if (!lessonResult.success || !lessonResult.data) {
     return (

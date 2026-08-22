@@ -25,6 +25,31 @@ export async function updateLessonProgress(
   try {
     const { user, supabase } = await getStudentUser();
 
+    // Server-side input clamping (M4) — never trust client numbers
+    const sanitized: {
+      completed?: boolean;
+      progress_percentage?: number;
+      last_position?: number;
+    } = {};
+    if (typeof updates.completed === "boolean") {
+      sanitized.completed = updates.completed;
+    }
+    if (
+      typeof updates.progress_percentage === "number" &&
+      Number.isFinite(updates.progress_percentage)
+    ) {
+      sanitized.progress_percentage = Math.min(
+        100,
+        Math.max(0, Math.round(updates.progress_percentage))
+      );
+    }
+    if (
+      typeof updates.last_position === "number" &&
+      Number.isFinite(updates.last_position)
+    ) {
+      sanitized.last_position = Math.max(0, Math.round(updates.last_position));
+    }
+
     // Verify user has access to the course containing this lesson
     const { data: lessonData } = (await supabase
       .from("lessons")
@@ -44,7 +69,7 @@ export async function updateLessonProgress(
         {
           user_id: user.id,
           lesson_id: lessonId,
-          ...updates,
+          ...sanitized,
           updated_at: new Date().toISOString(),
         } as any,
         { onConflict: "user_id,lesson_id" } as any
@@ -67,6 +92,36 @@ export async function markLessonComplete(
   try {
     const { user, supabase } = await getStudentUser();
 
+    // Resolve the lesson's course once for both checks below
+    const { data: lessonData } = (await supabase
+      .from("lessons")
+      .select("module_id, modules(course_id)")
+      .eq("id", lessonId)
+      .single()) as any;
+
+    if (!lessonData) return { success: false, error: "Lesson not found" };
+    const courseId = (lessonData.modules as any)?.course_id;
+
+    // Enrollment check (H3): preview lessons are readable without a
+    // user_courses row; writing progress is rejected by RLS with an
+    // opaque policy error. Fail early with an actionable message.
+    let enrolled = false;
+    if (courseId) {
+      const { count } = await supabase
+        .from("user_courses")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("course_id", courseId);
+      enrolled = (count ?? 0) > 0;
+    }
+    if (!enrolled) {
+      return {
+        success: false,
+        error:
+          "This is a preview lesson. Redeem an access token for this course to track your progress.",
+      };
+    }
+
     const { error } = await supabase
       .from("lesson_progress")
       .upsert(
@@ -83,14 +138,6 @@ export async function markLessonComplete(
     if (error) return { success: false, error: error.message };
 
     // Get updated course progress
-    const { data: lessonData } = (await supabase
-      .from("lessons")
-      .select("module_id, modules(course_id)")
-      .eq("id", lessonId)
-      .single()) as any;
-
-    const courseId = (lessonData?.modules as any)?.course_id;
-
     let courseProgress = 0;
     if (courseId) {
       const { data: progress } = await supabase.rpc("get_course_progress" as any, {

@@ -79,12 +79,15 @@ export async function hashToken(rawToken: string): Promise<string> {
 // ============================================================
 
 export function generateSlug(title: string): string {
-  return title
+  const slug = title
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  // Non-Latin titles (Hindi, Chinese, symbols) strip to nothing — fall
+  // back to a time-based slug so uniqueness still holds (M2).
+  return slug || `course-${Date.now().toString(36)}`;
 }
 
 // ============================================================
@@ -182,6 +185,7 @@ export function getTokenErrorMessage(error: string): string {
     invalid_token: "Invalid or incorrect access token. Please check and try again.",
     token_disabled: "This access token has been deactivated. Please contact your administrator.",
     token_expired: "This access token has expired. Please contact your administrator for a new token.",
+    unauthorized: "Your session is invalid or has expired. Please sign in again.",
     token_assigned_to_another_student: "This token is assigned to another student account. Please contact your administrator.",
     token_max_uses_reached: "This access token has reached its maximum usage limit. Please contact your administrator.",
     no_courses_assigned: "No courses are currently assigned to this token. Please contact your administrator.",

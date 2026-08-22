@@ -45,7 +45,7 @@ Next.js 16.3, React 19, TypeScript, Tailwind 4, Supabase (Postgres, Auth, Storag
 - `/login` = username+password sign-in; `/register` = create account; dashboard = inline token redemption for authenticated students. Legacy standalone `/access` flow removed (2026-08-19).
 - Authenticated token redemption: `redeemTokenAuthenticated()` in `src/actions/student/access.ts` — gets current user from session, validates token, calls `redeem_access_token` RPC which binds token to the existing student (`bound_user_id`), assigns courses, upserts profile. `TokenRedeemForm` on dashboard. Generation and redemption are fully separate; redemption never gets a token-created account.
 - Manual course grant: `grantCourseAccess()` in `src/actions/admin/users.ts` uses the authenticated client from `getAdminUser()` to call `grant_course_access_admin` RPC (which authorizes via `auth.uid()` plus profiles role check).
-- Password recovery: `recovery_tokens` table (migration 004) stores only SHA-256 `token_hash` + `username` + `expires_at` (24h) + `used_at` (single-use), admin-only RLS. Admin issues one-time token at `/admin/users`. Student consumes at `/recover` (username + token + new password). Enumeration-safe (unknown usernames return fake success). FIXED 2026-08-22: mark-as-used filter used `.eq("used_at", null)` (invalid PostgREST cast → every redemption failed with `unknown_error`); now `.is("used_at", null)`. Regression coverage in `tests/integration/recovery-token.test.ts` (5 tests incl. real sign-in verification).
+- Password recovery: `recovery_tokens` table (migration 004) stores only SHA-256 `token_hash` + `username` + `expires_at` (24h) + `used_at` (single-use), admin-only RLS. Admin issues one-time token at `/admin/users`. Student consumes at `/recover` (username + token + new password). Enumeration-safe (unknown usernames return fake success). FIXED 2026-08-22: mark-as-used filter used `.eq("used_at", null)` (invalid PostgREST cast → every redemption failed with `unknown_error`); now `.is("used_at", null)`. Hardened 2026-08-22 (Wave 2, H7): the single-use claim chains `.is("used_at", null)` with `.select("id")` and treats zero returned rows as `recovery_token_used`, making concurrent submissions safe. Regression coverage in `tests/integration/recovery-token.test.ts` (5 tests incl. real sign-in verification).
 - Auth redirects handled by Next.js proxy (middleware): unauthenticated → /login, /admin → /admin/login.
 - Migrations 003, 004, 005 applied to hosted Supabase and verified.
 
@@ -61,6 +61,7 @@ External URLs are the primary media source. Video = third-party M3U8/HLS URLs. P
 
 - Postgres via Supabase. RLS enabled on all tables. Indexes on hash/slug/sort/user.
 - Storage bucket `course-materials` (private, 500MB, allow-listed mime types). RLS: admin full, students read only via `student_has_course_access((name split)[1])`.
+- Storage bucket `course-thumbnails` (PUBLIC, 10MB, image-only) added by migration 010 — course cover images only; public URLs are safe to store in `courses.thumbnail_url`. Legacy broken private-bucket thumbnail URLs were nulled by the same migration.
 - `npm run lint` shows many pre-existing warnings/errors (no-img-element, no-explicit-any, etc). `tsc --noEmit` passes.
 
 ## Security rules
@@ -125,6 +126,14 @@ The previous design direction (warm editorial palette, periwinkle primary, Newsr
 - Phase DBI-5 — Auto Course Importer UI COMPLETE (2026-08-22): Admin sidebar nav item + `/admin/import` page. `parseImport()` server action (read-only, no DB writes). Upload/inspection/import workflow: dropzone, course preview (source ID/type, module/lesson counts by type, module list, warnings), incremental vs replacement import with AlertDialog confirmation, success summary with course builder link. Reuses DBI-2/DBI-4 actions. `tsc --noEmit` + `npm run build` pass.
 - Full project audit (2026-08-22): `tsc --noEmit` passes; `npm run build` passes (23 routes); all 96 Vitest tests pass against live Supabase (85 integration + 11 unit); E2E suite is 28 tests across 7 spec files. Docs reconciled with code (migrations 006/007, site settings branding, admin accounts page, test counts).
 - Recovery token fix + dead code removal (2026-08-22): root-caused broken `/recover` flow (PostgREST `.eq("used_at", null)` cast error), fixed to `.is()`, added `tests/integration/recovery-token.test.ts` (5 tests). Deleted 3 stale component duplicates in `src/components/` (764 lines). Full suite: 101 Vitest tests pass. `tsc --noEmit` + `npm run build` pass.
+- Bug Fix Wave 2 (2026-08-22, from FoundBugs.md — C3, C4, H1, H3–H7, M2–M7, M10):
+  - C3: public `course-thumbnails` bucket (migration 010) + `uploadCourseThumbnail()` rewrite; legacy broken thumbnail URLs nulled.
+  - C4: migration 009 hardcodes `'student'` in `handle_new_user()` trigger.
+  - H1: replacement re-import snapshots + re-links `lesson_progress` via fingerprints (incl. rollback restore); dialog copy updated.
+  - H3: enrollment-aware lesson viewer (`CourseViewerData.enrolled`) + server-side enrollment pre-check in `markLessonComplete()` with actionable preview message.
+  - H4: `uploadLessonFile()` uploads before deleting the old object. H5: reorder actions surface errors. H6: imported-source panel in lesson editor; same-type media saves preserve `content`. H7: recovery-token claim is row-count-checked.
+  - M2 slug fallback, M3 quoted/escaped admin search, M4 progress clamping, M5 media-source validation (client validate + updateLesson backstop), M6 stale storage_path cleanup incl. orphan object deletion, M7 lesson↔course binding in `getLessonContent()`, M10 dead course-builder deleted.
+  - Requires applying migrations 009 + 010 to hosted Supabase. `tsc --noEmit` + `npm build` verified; full test suite deferred per Wave 2 policy.
 
 ## Conventions
 

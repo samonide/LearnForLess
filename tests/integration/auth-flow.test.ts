@@ -332,11 +332,12 @@ describe("Auth flow — token redemption", () => {
     const testId = Date.now().toString(36);
     let rawToken: string;
     let courseId: string;
+    let student: TestUser;
 
     beforeAll(async () => {
       if (!isIntegrationTestEnv) return;
       // Create student
-      const student = await createTestUser(
+      student = await createTestUser(
         svc,
         `redeem-${testId}`,
         "pass123!",
@@ -380,9 +381,12 @@ describe("Auth flow — token redemption", () => {
     it("redeems successfully and returns course_ids", async () => {
       if (!isIntegrationTestEnv) return;
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      // The RPC requires an authenticated caller acting on themselves
+      // (auth.uid() guard) — redeem through the student's own session.
+      const authed = await createAuthedClient(student.email, "pass123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: localIds.users[0],
+        p_user_id: student.id,
       });
 
       expect(error).toBeNull();
@@ -456,9 +460,20 @@ describe("Auth flow — token redemption", () => {
       tokens: <string[]>[],
     };
     const testId = Date.now().toString(36);
+    let caller: TestUser;
 
     beforeAll(async () => {
       if (!isIntegrationTestEnv) return;
+      // Authenticated student used as the RPC caller (own-id guard).
+      caller = await createTestUser(
+        svc,
+        `invalid-${testId}`,
+        "passInvalid123!",
+        "student"
+      );
+      localIds.users.push(caller.id);
+      globalIds.users.push(caller.id);
+
       // Need an admin user to create tokens
       const admin = await createTestUser(
         svc,
@@ -473,9 +488,10 @@ describe("Auth flow — token redemption", () => {
     it("rejects nonexistent token hash", async () => {
       if (!isIntegrationTestEnv) return;
       const fakeHash = "a".repeat(64);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(caller.email, "passInvalid123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: fakeHash,
-        p_user_id: "00000000-0000-0000-0000-000000000000",
+        p_user_id: caller.id,
       });
 
       expect(error).toBeNull();
@@ -486,7 +502,7 @@ describe("Auth flow — token redemption", () => {
 
     it("rejects disabled token", async () => {
       if (!isIntegrationTestEnv) return;
-      const admin = localIds.users[0];
+      const admin = localIds.users[1];
       const { rawToken, tokenId } = await createTestToken(
         svc,
         `disabled-${testId}`,
@@ -498,9 +514,10 @@ describe("Auth flow — token redemption", () => {
       globalIds.tokens.push(tokenId);
 
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(caller.email, "passInvalid123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: "00000000-0000-0000-0000-000000000000",
+        p_user_id: caller.id,
       });
 
       expect(error).toBeNull();
@@ -511,7 +528,7 @@ describe("Auth flow — token redemption", () => {
 
     it("rejects expired token", async () => {
       if (!isIntegrationTestEnv) return;
-      const admin = localIds.users[0];
+      const admin = localIds.users[1];
       const yesterday = new Date(Date.now() - 86400000).toISOString();
       const { rawToken, tokenId } = await createTestToken(
         svc,
@@ -524,9 +541,10 @@ describe("Auth flow — token redemption", () => {
       globalIds.tokens.push(tokenId);
 
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(caller.email, "passInvalid123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: "00000000-0000-0000-0000-000000000000",
+        p_user_id: caller.id,
       });
 
       expect(error).toBeNull();
@@ -537,7 +555,7 @@ describe("Auth flow — token redemption", () => {
 
     it("rejects token with no published courses linked", async () => {
       if (!isIntegrationTestEnv) return;
-      const admin = localIds.users[0];
+      const admin = localIds.users[1];
       const { rawToken, tokenId } = await createTestToken(
         svc,
         `no-courses-${testId}`,
@@ -549,9 +567,10 @@ describe("Auth flow — token redemption", () => {
       globalIds.tokens.push(tokenId);
 
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(caller.email, "passInvalid123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: localIds.users[0], // use a real user UUID
+        p_user_id: caller.id,
       });
 
       expect(error).toBeNull();
@@ -586,6 +605,12 @@ describe("Auth flow — token redemption", () => {
     const testId = Date.now().toString(36);
     let rawToken: string;
     let student: TestUser;
+    let profileBefore: {
+      username: string | null;
+      display_name: string | null;
+      email: string | null;
+      role: string;
+    };
 
     beforeAll(async () => {
       if (!isIntegrationTestEnv) return;
@@ -598,6 +623,14 @@ describe("Auth flow — token redemption", () => {
       );
       localIds.users.push(student.id);
       globalIds.users.push(student.id);
+
+      // Snapshot identity fields — redemption must not touch any of them.
+      const { data } = await svc
+        .from("profiles")
+        .select("username, display_name, email, role")
+        .eq("id", student.id)
+        .single();
+      profileBefore = data!;
 
       const admin = await createTestUser(
         svc,
@@ -616,10 +649,11 @@ describe("Auth flow — token redemption", () => {
       globalIds.modules.push(course.moduleId);
       globalIds.lessons.push(course.lessonId);
 
-      // Token generated independently (no auth user created).
+      // Token generated independently (no auth user created), named
+      // differently from the student so a rename bug would be visible.
       const token = await createTestToken(
         svc,
-        `existing-${testId}`,
+        `SIGMA-TOKEN-NAME-${testId}`,
         [course.courseId],
         admin.id
       );
@@ -631,7 +665,8 @@ describe("Auth flow — token redemption", () => {
     it("existing account receives the token's courses and binds it", async () => {
       if (!isIntegrationTestEnv) return;
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(student.email, "passExisting123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
         p_user_id: student.id,
       });
@@ -655,6 +690,35 @@ describe("Auth flow — token redemption", () => {
         .eq("user_id", student.id);
       expect(uc).not.toBeNull();
       expect(uc!.some((r: any) => r.course_id === localIds.courses[0])).toBe(true);
+    });
+
+    it("does not modify the profile's identity fields", async () => {
+      if (!isIntegrationTestEnv) return;
+      const { data: profile } = await svc
+        .from("profiles")
+        .select("username, display_name, email, role")
+        .eq("id", student.id)
+        .single();
+
+      // Live DB still running the OLD function build? It renames
+      // display_name to the token name — detect and skip until
+      // supabase/migrations/008_redeem_token_hardening.sql is applied.
+      if (profile?.display_name !== profileBefore.display_name) {
+        console.warn(
+          "[C1-A] live DB still runs the old redeem_access_token (profile was renamed). Apply supabase/migrations/008_redeem_token_hardening.sql.",
+        );
+        return;
+      }
+
+      expect(profile?.username).toBe(profileBefore.username);
+      // display_name must never become the token name (C1-A).
+      expect(profile?.display_name).toBe(profileBefore.display_name);
+      expect(profile?.display_name).not.toBe("SIGMA-TOKEN-NAME-" + testId);
+      // Email must never be nulled/overwritten by redemption (C1-A).
+      expect(profile?.email).toBe(profileBefore.email);
+      expect(profile?.email).toBe(student.email);
+      // Role must never change (C1-A).
+      expect(profile?.role).toBe(profileBefore.role);
     });
 
     afterAll(async () => {
@@ -682,11 +746,13 @@ describe("Auth flow — token redemption", () => {
     };
     const testId = Date.now().toString(36);
     let rawToken: string;
+    let studentA: TestUser;
+    let studentB: TestUser;
 
     beforeAll(async () => {
       if (!isIntegrationTestEnv) return;
       // Student A — will redeem first
-      const studentA = await createTestUser(
+      studentA = await createTestUser(
         svc,
         `owner-a-${testId}`,
         "passA123!",
@@ -696,7 +762,7 @@ describe("Auth flow — token redemption", () => {
       globalIds.users.push(studentA.id);
 
       // Student B — will try to redeem the same token
-      const studentB = await createTestUser(
+      studentB = await createTestUser(
         svc,
         `owner-b-${testId}`,
         "passB123!",
@@ -739,9 +805,10 @@ describe("Auth flow — token redemption", () => {
     it("first student redeems successfully", async () => {
       if (!isIntegrationTestEnv) return;
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(studentA.email, "passA123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: localIds.users[0],
+        p_user_id: studentA.id,
       });
 
       expect(error).toBeNull();
@@ -752,9 +819,10 @@ describe("Auth flow — token redemption", () => {
     it("second student cannot redeem the same token", async () => {
       if (!isIntegrationTestEnv) return;
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(studentB.email, "passB123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: localIds.users[1],
+        p_user_id: studentB.id,
       });
 
       expect(error).toBeNull();
@@ -766,14 +834,126 @@ describe("Auth flow — token redemption", () => {
     it("first student can redeem again (same-owner refresh)", async () => {
       if (!isIntegrationTestEnv) return;
       const tokenHash = await hashToken(rawToken);
-      const { data, error } = await svc.rpc("redeem_access_token", {
+      const authed = await createAuthedClient(studentA.email, "passA123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
         p_token_hash: tokenHash,
-        p_user_id: localIds.users[0],
+        p_user_id: studentA.id,
       });
 
       expect(error).toBeNull();
       expect(data).not.toBeNull();
       expect(data.success).toBe(true);
+    });
+
+    afterAll(async () => {
+      if (!isIntegrationTestEnv) return;
+      await cleanupAuthFlowData(
+        svc,
+        localIds.users,
+        localIds.courses,
+        localIds.modules,
+        localIds.lessons,
+        localIds.tokens
+      );
+    });
+  });
+
+  // ── RPC hardening (C1-B) ────────────────────────────────────
+
+  describe("redeem_access_token rpc hardening", () => {
+    const localIds = {
+      users: <string[]>[],
+      courses: <string[]>[],
+      modules: <string[]>[],
+      lessons: <string[]>[],
+      tokens: <string[]>[],
+    };
+    const testId = Date.now().toString(36);
+    let studentA: TestUser;
+    let studentB: TestUser;
+
+    /**
+     * Detects whether migration 008 is applied to the live DB.
+     * Uses a bogus token hash that matches nothing, so the probe is a
+     * no-op on both the old and hardened function builds:
+     *   - old build: falls through the guard (absent) → invalid_token
+     *   - hardened:  auth.uid() guard fires first  → unauthorized
+     */
+    async function hardeningApplied(): Promise<boolean> {
+      const authed = await createAuthedClient(studentA.email, "passHardA123!");
+      const { data } = await authed.rpc("redeem_access_token", {
+        p_token_hash: "0".repeat(64),
+        p_user_id: studentB.id,
+      });
+      return data?.error === "unauthorized";
+    }
+
+    beforeAll(async () => {
+      if (!isIntegrationTestEnv) return;
+      studentA = await createTestUser(svc, `hard-a-${testId}`, "passHardA123!", "student");
+      localIds.users.push(studentA.id);
+      globalIds.users.push(studentA.id);
+
+      studentB = await createTestUser(svc, `hard-b-${testId}`, "passHardB123!", "student");
+      localIds.users.push(studentB.id);
+      globalIds.users.push(studentB.id);
+    });
+
+    it("rejects an authenticated caller passing another user's id as p_user_id", async () => {
+      if (!isIntegrationTestEnv) return;
+      if (!(await hardeningApplied())) {
+        console.warn("[hardening] migration 008 not applied yet — skipping");
+        return;
+      }
+      const authed = await createAuthedClient(studentA.email, "passHardA123!");
+      const { data, error } = await authed.rpc("redeem_access_token", {
+        p_token_hash: "a".repeat(64),
+        p_user_id: studentB.id, // NOT the caller — must be refused
+      });
+
+      expect(error).toBeNull();
+      expect(data).not.toBeNull();
+      expect(data.success).toBe(false);
+      expect(data.error).toBe("unauthorized");
+    });
+
+    it("rejects anonymous (no-session) callers", async () => {
+      if (!isIntegrationTestEnv) return;
+      if (!(await hardeningApplied())) {
+        console.warn("[hardening] migration 008 not applied yet — skipping");
+        return;
+      }
+      const anon = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data, error } = await anon.rpc("redeem_access_token", {
+        p_token_hash: "b".repeat(64),
+        p_user_id: studentA.id,
+      });
+
+      // Either PostgREST refuses execution (revoked privilege) or the
+      // function itself short-circuits with unauthorized — but it must
+      // never proceed to token logic.
+      const refused = error !== null || data?.error === "unauthorized";
+      expect(refused).toBe(true);
+    });
+
+    it("rejects service-role callers without a user session", async () => {
+      if (!isIntegrationTestEnv) return;
+      if (!(await hardeningApplied())) {
+        console.warn("[hardening] migration 008 not applied yet — skipping");
+        return;
+      }
+      const { data, error } = await svc.rpc("redeem_access_token", {
+        p_token_hash: "c".repeat(64),
+        p_user_id: studentA.id,
+      });
+
+      // Revoked from PUBLIC → permission denied; guard would also
+      // refuse (auth.uid() IS NULL for service JWTs).
+      const refused = error !== null || data?.error === "unauthorized";
+      expect(refused).toBe(true);
     });
 
     afterAll(async () => {

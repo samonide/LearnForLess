@@ -18,7 +18,7 @@ type PageState =
   | { phase: "parsing" }
   | { phase: "inspection"; parseResult: { success: true; course: { source_id: string; source_type: string; title: string; description: string | null; modules: { title: string; description: string | null; sort_order: number; source_chapter_num: string; lessons: { title: string; content_type: string; sort_order: number; is_preview: boolean }[] }[] }; warnings: { level: string; message: string; source_type: string; source_key: string | null }[]; moduleCount: number; totalLessonCount: number; lessonsByType: Record<string, number> }; fileName: string }
   | { phase: "importing"; mode: ImportMode; fileName: string; courseTitle: string }
-  | { phase: "success"; result: { courseId: string; courseTitle: string; mode: string; modulesCreated: number; lessonsAdded: number; lessonsRemoved: number; totalLessons: number; lessonsByType: Record<string, number>; warnings: { level: string; message: string; source_type: string; source_key: string | null }[] } }
+  | { phase: "success"; result: { courseId: string; courseTitle: string; mode: string; modulesCreated: number; lessonsAdded: number; lessonsRemoved: number; progressRestored?: number; totalLessons: number; lessonsByType: Record<string, number>; warnings: { level: string; message: string; source_type: string; source_key: string | null }[] } }
   | { phase: "error"; message: string };
 
 const contentTypeLabels: Record<string, { label: string; icon: React.ElementType }> = {
@@ -215,6 +215,14 @@ export default function ImportPage() {
                 <div className="text-xs text-muted-foreground mt-0.5">Modules</div>
               </div>
             </div>
+
+            {state.result.mode === "replacement" &&
+              (state.result.progressRestored ?? 0) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Student progress preserved: {state.result.progressRestored}{" "}
+                  {state.result.progressRestored === 1 ? "record" : "records"} re-linked to the recreated lessons.
+                </p>
+              )}
 
             {Object.keys(state.result.lessonsByType).length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -430,8 +438,8 @@ export default function ImportPage() {
                     </CardTitle>
                     <CardDescription className="text-xs mt-1">
                       Remove all imported modules and lessons, then re-import
-                      from source. Course metadata, enrollments, and manual
-                      content are preserved.
+                      from source. Course metadata, enrollments, student
+                      progress, and manual content are preserved.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 pt-0">
@@ -460,6 +468,7 @@ export default function ImportPage() {
                             <li>Re-import from source file</li>
                             <li>Preserve course metadata and settings</li>
                             <li>Preserve student enrollments</li>
+                            <li>Re-link student progress to the recreated lessons</li>
                             <li>Preserve manually-added content</li>
                           </ul>
                         </AlertDialogDescription>

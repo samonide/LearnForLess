@@ -192,7 +192,12 @@ export async function reorderModules(
         .eq("course_id", courseId)
     );
 
-    await Promise.all(updates);
+    // Surface any failed update (H5) — never report success on partial failure
+    const results = await Promise.all(updates);
+    const firstError = results.find((r) => r.error);
+    if (firstError?.error) {
+      return { success: false, error: `Reorder failed: ${firstError.error.message}` };
+    }
 
     revalidatePath(`/admin/courses/${courseId}/builder`);
     return { success: true, data: undefined };

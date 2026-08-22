@@ -167,6 +167,8 @@ export type CourseViewerData = Course & {
   total_lessons: number;
   completed_lessons: number;
   progress_pct: number;
+  /** Whether the viewing student holds a user_courses row for this course. */
+  enrolled: boolean;
 };
 
 // ============================================================
@@ -242,6 +244,7 @@ export type TokenRedemptionError =
   | "invalid_token"
   | "token_disabled"
   | "token_expired"
+  | "unauthorized"
   | "token_assigned_to_another_student"
   | "token_max_uses_reached"
   | "no_courses_assigned"
@@ -389,6 +392,8 @@ export type ImportResult = {
   lessonsAdded: number;
   /** Lessons removed this run. 0 unless mode is "replacement". */
   lessonsRemoved: number;
+  /** Student progress rows re-linked to recreated lessons (replacement mode). */
+  progressRestored?: number;
   lessonsByType: Record<string, number>;
   totalLessons: number;
   warnings: ImportWarning[];

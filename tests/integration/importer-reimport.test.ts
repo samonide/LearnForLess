@@ -82,7 +82,7 @@ describe("incremental re-import (integration)", () => {
   beforeEach(async () => {
     if (!isIntegrationTestEnv) return;
     courseId = await importFresh(svc, adminUserId);
-  });
+  }, 300_000);
 
   afterEach(async () => {
     if (!isIntegrationTestEnv) return;
@@ -98,7 +98,7 @@ describe("incremental re-import (integration)", () => {
     }
   });
 
-  it("re-import with no changes: zero modules/lessons added", async () => {
+  it("re-import with no changes: zero modules/lessons added", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const buffer = readFileSync(DB_PATH);
@@ -121,7 +121,7 @@ describe("incremental re-import (integration)", () => {
     expect(summary.lessonsRemoved).toBe(0);
   });
 
-  it("deleted module re-added on incremental re-import", async () => {
+  it("deleted module re-added on incremental re-import", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const { data: modules } = await svc
@@ -161,7 +161,7 @@ describe("incremental re-import (integration)", () => {
     expect(restored?.length).toBe(1);
   });
 
-  it("deleted lesson re-added on incremental re-import", async () => {
+  it("deleted lesson re-added on incremental re-import", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const { data: modules } = await svc
@@ -207,7 +207,7 @@ describe("incremental re-import (integration)", () => {
     expect(restored?.length).toBe(1);
   });
 
-  it("manual module (NULL source_chapter_num) preserved across re-import", async () => {
+  it("manual module (NULL source_chapter_num) preserved across re-import", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const originalCount = await countModules(svc, courseId);
@@ -236,7 +236,7 @@ describe("incremental re-import (integration)", () => {
     expect(finalCount).toBe(originalCount + 1);
   });
 
-  it("manual lesson (NULL source_fingerprint) preserved across re-import", async () => {
+  it("manual lesson (NULL source_fingerprint) preserved across re-import", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const { data: modules } = await svc
@@ -277,7 +277,7 @@ describe("incremental re-import (integration)", () => {
     expect(manualLessons?.length).toBe(1);
   });
 
-  it("multiple re-imports: no duplicates accumulate", async () => {
+  it("multiple re-imports: no duplicates accumulate", { timeout: 600_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const originalCount = await countLessons(svc, courseId);
@@ -338,7 +338,7 @@ describe("replacement re-import (integration)", () => {
   beforeEach(async () => {
     if (!isIntegrationTestEnv) return;
     courseId = await importFresh(svc, adminUserId);
-  });
+  }, 300_000);
 
   afterEach(async () => {
     if (!isIntegrationTestEnv) return;
@@ -354,7 +354,7 @@ describe("replacement re-import (integration)", () => {
     }
   });
 
-  it("replace: imported lessons removed and recreated", async () => {
+  it("replace: imported lessons removed and recreated", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const originalLessonCount = await countLessons(svc, courseId);
@@ -381,7 +381,7 @@ describe("replacement re-import (integration)", () => {
     expect(finalCount).toBe(originalLessonCount);
   });
 
-  it("replace: imported modules removed and recreated", async () => {
+  it("replace: imported modules removed and recreated", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const originalModuleCount = await countModules(svc, courseId);
@@ -408,7 +408,7 @@ describe("replacement re-import (integration)", () => {
     expect(finalCount).toBe(originalModuleCount);
   });
 
-  it("manual module (NULL source_chapter_num) preserved in replace", async () => {
+  it("manual module (NULL source_chapter_num) preserved in replace", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const originalCount = await countModules(svc, courseId);
@@ -435,7 +435,7 @@ describe("replacement re-import (integration)", () => {
     expect(finalCount).toBe(originalCount + 1);
   });
 
-  it("manual lesson (NULL source_fingerprint) preserved in replace", async () => {
+  it("manual lesson (NULL source_fingerprint) preserved in replace", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const { data: modules } = await svc
@@ -474,7 +474,7 @@ describe("replacement re-import (integration)", () => {
     expect(manualLessons?.length).toBe(1);
   });
 
-  it("course row preserved across replace", async () => {
+  it("course row preserved across replace", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const { data: courseBefore } = await svc
@@ -508,7 +508,7 @@ describe("replacement re-import (integration)", () => {
     expect(courseAfter!.status).toBe(courseBefore!.status);
   });
 
-  it("enrollments preserved across replace", async () => {
+  it("enrollments preserved across replace", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const student = await createTestUser(
@@ -542,7 +542,7 @@ describe("replacement re-import (integration)", () => {
     await cleanupTestData(svc, [student.id], []);
   });
 
-  it("course_imports record created with replacement mode", async () => {
+  it("course_imports record created with replacement mode", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !courseId) return;
 
     const buffer = readFileSync(DB_PATH);

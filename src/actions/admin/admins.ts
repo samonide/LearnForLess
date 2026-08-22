@@ -33,6 +33,19 @@ export async function getAdmins() {
 // SEARCH STUDENTS (for promotion)
 // ============================================================
 
+/**
+ * Make an arbitrary search term safe for a PostgREST `.or(...)` filter:
+ * - double-quote the value so reserved syntax characters (commas,
+ *   parens, colons) are treated literally instead of corrupting the
+ *   filter grammar (M3);
+ * - escape embedded double quotes (doubled, CSV-style);
+ * - escape LIKE wildcards so user input matches literally.
+ */
+function quoteOrValue(value: string): string {
+  const escaped = value.replace(/"/g, '""').replace(/([%_\\])/g, "\\$1");
+  return `"${escaped}"`;
+}
+
 export async function searchPromotableUsers(query: string) {
   try {
     await getAdminUser();
@@ -41,11 +54,12 @@ export async function searchPromotableUsers(query: string) {
 
     if (!q) return { success: true as const, data: [] as { id: string; email: string | null; display_name: string | null; username: string | null }[] };
 
+    const v = quoteOrValue(q);
     const { data, error } = await adminClient
       .from("profiles")
       .select("id, email, display_name, username")
       .eq("role", "student")
-      .or(`email.ilike.%${q}%,display_name.ilike.%${q}%,username.ilike.%${q}%`)
+      .or(`email.ilike.${v},display_name.ilike.${v},username.ilike.${v}`)
       .limit(8);
 
     if (error) return { success: false as const, error: error.message };

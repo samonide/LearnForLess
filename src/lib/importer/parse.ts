@@ -107,6 +107,108 @@ interface ChapterGroup {
   codeFiles: RawCodeFile[];
 }
 
+// ── Duplicate handling ─────────────────────────────────────
+
+/**
+ * Source .db files (e.g. DBTest/apna_videos.db) contain literal
+ * duplicate rows: some byte-identical copies, and a few rows that
+ * share the logical fingerprint key (chapter + per-type unique key)
+ * but carry genuinely different material (different stream URLs).
+ *
+ * Handling:
+ *   1. Byte-identical rows are dropped here, keeping the first copy,
+ *      and reported via a warning.
+ *   2. Rows sharing a key but differing in material are ALL assigned
+ *      a deterministic fingerprint derived from key + material
+ *      signature, so every distinct material imports once.
+ *   3. Lone rows keep the legacy fingerprint format
+ *      ({type}:{courseId}:{chapter}:{uniqueKey}) so re-imports of
+ *      previously-imported files stay idempotent.
+ */
+function dedupeRows<T>(
+  rows: T[],
+  type: SourceContentType,
+  courseId: string,
+  chapterName: string,
+  getKey: (row: T) => string,
+  label: (row: T) => string,
+  warnings: ImportWarning[],
+): Array<{ row: T; fingerprint: string }> {
+  const typeLabel =
+    type === "video" ? "video" : type === "pdf" ? "PDF" : "code file";
+
+  // Group by logical key, preserving encounter order.
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = getKey(row);
+    const list = groups.get(key);
+    if (list) list.push(row);
+    else groups.set(key, [row]);
+  }
+
+  const kept: Array<{ row: T; fingerprint: string }> = [];
+
+  for (const [key, groupRows] of groups) {
+    // 1. Collapse byte-identical copies (keep first).
+    const seenSigs = new Map<string, T>();
+    const distinct: Array<{ row: T; sig: string }> = [];
+    let droppedCopies = 0;
+
+    for (const row of groupRows) {
+      const sig = JSON.stringify(row);
+      if (seenSigs.has(sig)) {
+        droppedCopies++;
+        continue;
+      }
+      seenSigs.set(sig, row);
+      distinct.push({ row, sig });
+    }
+
+    if (droppedCopies > 0) {
+      warnings.push({
+        level: "warning",
+        message: `Removed ${droppedCopies} exact duplicate ${typeLabel} row(s) for "${label(
+          groupRows[0],
+        )}" in chapter "${chapterName}" (identical source data); keeping the first copy.`,
+        source_type: type,
+        source_key: key,
+      });
+    }
+
+    // 2. Single distinct material → legacy fingerprint.
+    if (distinct.length === 1) {
+      kept.push({
+        row: distinct[0].row,
+        fingerprint: computeFingerprint(type, courseId, chapterName, key),
+      });
+      continue;
+    }
+
+    // 3. Distinct materials colliding on one key → deterministic
+    //    disambiguated fingerprints (stable across re-imports).
+    warnings.push({
+      level: "info",
+      message: `${distinct.length} distinct ${typeLabel} entries share the key "${key}" in chapter "${chapterName}"; importing all with material-disambiguated fingerprints.`,
+      source_type: type,
+      source_key: key,
+    });
+
+    for (const { row, sig } of distinct) {
+      kept.push({
+        row,
+        fingerprint: computeFingerprint(
+          type,
+          courseId,
+          chapterName,
+          `${key}|${sig}`,
+        ),
+      });
+    }
+  }
+
+  return kept;
+}
+
 // ── Parser ─────────────────────────────────────────────────
 
 /**
@@ -291,16 +393,16 @@ export async function parseDb(buffer: ArrayLike<number>): Promise<ParseResult> {
       let lessonOrder = 1;
 
       // 1. Videos (by video_index)
-      const sortedVideos = [...ch.videos].sort(
-        (a, b) => a.video_index - b.video_index,
+      const dedupedVideos = dedupeRows(
+        [...ch.videos].sort((a, b) => a.video_index - b.video_index),
+        "video",
+        courseId,
+        ch.chapter_name,
+        (v) => String(v.video_index),
+        (v) => v.title,
+        warnings,
       );
-      for (const v of sortedVideos) {
-        const fingerprint = computeFingerprint(
-          "video",
-          courseId,
-          ch.chapter_name,
-          String(v.video_index),
-        );
+      for (const { row: v, fingerprint } of dedupedVideos) {
         lessons.push({
           title: v.title,
           description: null,
@@ -319,16 +421,16 @@ export async function parseDb(buffer: ArrayLike<number>): Promise<ParseResult> {
       }
 
       // 2. PDFs (by pdf_index)
-      const sortedPdfs = [...ch.pdfs].sort(
-        (a, b) => a.pdf_index - b.pdf_index,
+      const dedupedPdfs = dedupeRows(
+        [...ch.pdfs].sort((a, b) => a.pdf_index - b.pdf_index),
+        "pdf",
+        courseId,
+        ch.chapter_name,
+        (p) => p.title,
+        (p) => p.title,
+        warnings,
       );
-      for (const p of sortedPdfs) {
-        const fingerprint = computeFingerprint(
-          "pdf",
-          courseId,
-          ch.chapter_name,
-          p.title,
-        );
+      for (const { row: p, fingerprint } of dedupedPdfs) {
         lessons.push({
           title: p.title,
           description: null,
@@ -347,17 +449,16 @@ export async function parseDb(buffer: ArrayLike<number>): Promise<ParseResult> {
       }
 
       // 3. Code files (by file_index)
-      const sortedCode = [...ch.codeFiles].sort(
-        (a, b) => a.file_index - b.file_index,
+      const dedupedCode = dedupeRows(
+        [...ch.codeFiles].sort((a, b) => a.file_index - b.file_index),
+        "code_file",
+        courseId,
+        ch.chapter_name,
+        (c) => c.filename ?? c.title,
+        (c) => c.title,
+        warnings,
       );
-      for (const c of sortedCode) {
-        const uniqueKey = c.filename ?? c.title;
-        const fingerprint = computeFingerprint(
-          "code_file",
-          courseId,
-          ch.chapter_name,
-          uniqueKey,
-        );
+      for (const { row: c, fingerprint } of dedupedCode) {
         lessons.push({
           title: c.title,
           description: c.filename ? `File: ${c.filename}` : null,

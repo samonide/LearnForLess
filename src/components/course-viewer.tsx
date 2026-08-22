@@ -466,6 +466,11 @@ export default function CourseViewer({
                     <Check className="w-4 h-4 stroke-[3px]" />
                     <span>Lesson Completed</span>
                   </div>
+                ) : !course.enrolled ? (
+                  <p className="text-xs text-muted-foreground">
+                    Preview lesson — redeem an access token for this course to
+                    track your progress.
+                  </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
                     Finish this lesson and mark it as complete to update your overall course progress.
@@ -473,22 +478,24 @@ export default function CourseViewer({
                 )}
               </div>
 
-              <Button
-                onClick={handleMarkComplete}
-                disabled={completedLessons.has(lessonId) || isPending}
-                className="flex items-center gap-2 h-11 px-6 font-semibold"
-              >
-                {isPending ? (
-                  <span>Saving...</span>
-                ) : completedLessons.has(lessonId) ? (
-                  <span>Completed</span>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Mark as Complete</span>
-                  </>
-                )}
-              </Button>
+              {course.enrolled && (
+                <Button
+                  onClick={handleMarkComplete}
+                  disabled={completedLessons.has(lessonId) || isPending}
+                  className="flex items-center gap-2 h-11 px-6 font-semibold"
+                >
+                  {isPending ? (
+                    <span>Saving...</span>
+                  ) : completedLessons.has(lessonId) ? (
+                    <span>Completed</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Mark as Complete</span>
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>

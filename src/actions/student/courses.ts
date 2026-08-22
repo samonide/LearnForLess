@@ -109,13 +109,30 @@ export async function getCourseForViewer(courseId: string): Promise<{
       return { success: false, error: "Course not found or access denied." };
     }
 
-    // Get modules with lessons
+    // Enrollment status (H3): published courses are readable by any
+    // authenticated student, but progress tracking requires a
+    // user_courses row. Preview-lesson visitors are not enrolled.
+    const { count: enrollmentCount } = await supabase
+      .from("user_courses")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("course_id", courseId);
+    const enrolled = (enrollmentCount ?? 0) > 0;
+
+    // H3: fetch modules, lessons, and the student's progress in one embedded
+    // query. Filtering lesson_progress by a course-sized `.in()` list exceeds
+    // Supabase URL limits on large courses (Prime 2.0 = 785 ids -> HTTP 400)
+    // and the ignored error silently emptied the progress map, making
+    // completed lessons render as uncompleted. Embedding through the
+    // lessons FK lets Postgres join server-side; RLS scopes the embedded
+    // rows to the calling user.
     const { data: modules, error: modulesError } = await supabase
       .from("modules")
       .select(
         `
         id, title, description, sort_order,
-        lessons(id, title, description, content_type, is_preview, sort_order)
+        lessons(id, title, description, content_type, is_preview, sort_order,
+          lesson_progress(lesson_id, completed, progress_percentage, last_position))
       `
       )
       .eq("course_id", courseId)
@@ -123,20 +140,30 @@ export async function getCourseForViewer(courseId: string): Promise<{
 
     if (modulesError) return { success: false, error: modulesError.message };
 
-    // Get all lesson progress for this student
-    const allLessonIds = (modules ?? []).flatMap(
-      (m) => ((m.lessons as { id: string }[]) ?? []).map((l) => l.id)
-    );
+    // Flatten embedded progress rows into a map keyed by lesson_id.
+    const progressMap = new Map<
+      string,
+      NonNullable<
+        Array<{
+          lesson_id: string; completed: boolean;
+          progress_percentage: number | null; last_position: number | null;
+        }>
+      >[number]
+    >();
 
-    const { data: progressData } = await supabase
-      .from("lesson_progress")
-      .select("lesson_id, completed, progress_percentage, last_position")
-      .eq("user_id", user.id)
-      .in("lesson_id", allLessonIds);
-
-    const progressMap = new Map(
-      (progressData ?? []).map((p) => [p.lesson_id, p])
-    );
+    for (const m of (modules ?? []) as Array<{
+      lessons?: Array<{
+        lesson_progress?: Array<{
+          lesson_id: string; completed: boolean;
+          progress_percentage: number | null; last_position: number | null;
+        }>;
+      }>;
+    }>) {
+      for (const l of m.lessons ?? []) {
+        const p = l.lesson_progress?.[0];
+        if (p) progressMap.set(p.lesson_id, p);
+      }
+    }
 
     // Build lesson number across all modules
     let lessonNumber = 0;
@@ -159,7 +186,12 @@ export async function getCourseForViewer(courseId: string): Promise<{
             const progress = progressMap.get(l.id);
             if (progress?.completed) completedCount++;
             return {
-              ...l,
+              id: l.id,
+              title: l.title,
+              description: l.description,
+              content_type: l.content_type,
+              is_preview: l.is_preview,
+              sort_order: l.sort_order,
               module_id: m.id,
               content: null,
               storage_path: null,
@@ -201,6 +233,7 @@ export async function getCourseForViewer(courseId: string): Promise<{
         total_lessons: totalCount,
         completed_lessons: completedCount,
         progress_pct: progressPct,
+        enrolled,
       },
     };
   } catch (e: unknown) {
@@ -212,7 +245,10 @@ export async function getCourseForViewer(courseId: string): Promise<{
 // GET LESSON CONTENT (with authorization check)
 // ============================================================
 
-export async function getLessonContent(lessonId: string): Promise<{
+export async function getLessonContent(
+  lessonId: string,
+  expectedCourseId?: string
+): Promise<{
   success: boolean;
   data?: {
     id: string;
@@ -257,6 +293,20 @@ export async function getLessonContent(lessonId: string): Promise<{
 
     if (courseStatus !== "published") {
       return { success: false, error: "This course is not available." };
+    }
+
+    // The lesson must belong to the course in the URL (M7) — otherwise a
+    // hand-edited /course/A/lesson/B link renders lesson B inside
+    // course A's sidebar/breadcrumbs with mismatched navigation.
+    if (
+      expectedCourseId &&
+      courseId &&
+      courseId !== expectedCourseId
+    ) {
+      return {
+        success: false,
+        error: "This lesson does not belong to this course.",
+      };
     }
 
     // Generate signed URL for storage-based content

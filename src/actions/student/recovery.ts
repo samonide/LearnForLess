@@ -125,15 +125,24 @@ export async function resetPasswordWithRecoveryToken(
     return { success: false, error: "recovery_token_expired" };
   }
 
-  // Mark token as used (single-use)
-  const { error: markError } = await adminClient
+  // Mark token as used (single-use). The conditional update is the race
+  // guard: `.select()` makes PostgREST return the matched rows, so a
+  // concurrent submission that claimed the token first yields an empty
+  // array here instead of silently "succeeding" (H7).
+  const { data: markedRows, error: markError } = await adminClient
     .from("recovery_tokens")
     .update({ used_at: new Date().toISOString() })
     .eq("id", token.id)
-    .is("used_at", null); // race guard
+    .is("used_at", null) // only claim if still unused
+    .select("id");
 
   if (markError) {
     return { success: false, error: "unknown_error" };
+  }
+
+  if (!markedRows || markedRows.length === 0) {
+    // Another concurrent request already consumed this token.
+    return { success: false, error: "recovery_token_used" };
   }
 
   // Resolve username -> auth user

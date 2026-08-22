@@ -224,6 +224,21 @@ export async function setCourseStatus(
 // UPLOAD COURSE THUMBNAIL
 // ============================================================
 
+const THUMBNAIL_BUCKET = "course-thumbnails";
+
+/**
+ * Extract the object path from a public URL of the thumbnails bucket.
+ * Returns null for external URLs or unparseable values.
+ */
+function thumbnailPathFromUrl(url: string): string | null {
+  const marker = `/object/public/${THUMBNAIL_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  const rawPath = url.slice(idx + marker.length).split("?")[0];
+  if (!rawPath || rawPath.includes("/") || rawPath.includes("..")) return null;
+  return decodeURIComponent(rawPath);
+}
+
 export async function uploadCourseThumbnail(
   courseId: string,
   file: File
@@ -232,17 +247,37 @@ export async function uploadCourseThumbnail(
     await getAdminUser();
     const adminClient = createAdminClient();
 
-    const ext = file.name.split(".").pop();
-    const path = `thumbnails/${courseId}.${ext}`;
+    if (!file.type.startsWith("image/")) {
+      return { success: false, error: "Only image files are allowed." };
+    }
 
+    const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
+    if (!/^[a-z0-9]{1,8}$/.test(ext)) {
+      return { success: false, error: "Invalid image file extension." };
+    }
+
+    const path = `${courseId}.${ext}`;
+
+    const { data: existing } = await adminClient
+      .from("courses")
+      .select("thumbnail_url")
+      .eq("id", courseId)
+      .single();
+
+    const previousPath = existing?.thumbnail_url
+      ? thumbnailPathFromUrl(existing.thumbnail_url)
+      : null;
+
+    // Upload into the dedicated PUBLIC bucket — getPublicUrl output is
+    // only usable when the object lives in a public bucket (C3).
     const { error } = await adminClient.storage
-      .from("course-materials")
+      .from(THUMBNAIL_BUCKET)
       .upload(path, file, { upsert: true });
 
     if (error) return { success: false, error: error.message };
 
     const { data: urlData } = adminClient.storage
-      .from("course-materials")
+      .from(THUMBNAIL_BUCKET)
       .getPublicUrl(path);
 
     // Update course thumbnail_url
@@ -250,6 +285,11 @@ export async function uploadCourseThumbnail(
       .from("courses")
       .update({ thumbnail_url: urlData.publicUrl })
       .eq("id", courseId);
+
+    // Remove stale object when the extension changed (e.g. png → webp)
+    if (previousPath && previousPath !== path) {
+      await adminClient.storage.from(THUMBNAIL_BUCKET).remove([previousPath]);
+    }
 
     revalidatePath(`/admin/courses/${courseId}`);
     return { success: true, data: { url: urlData.publicUrl } };

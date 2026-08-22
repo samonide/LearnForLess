@@ -140,31 +140,66 @@ export async function updateLesson(
     if (rest.is_preview !== undefined) updates.is_preview = rest.is_preview;
     if (rest.sort_order !== undefined) updates.sort_order = rest.sort_order;
 
+    // Single row fetch reused below: duplicate-title scoping, stale-file
+    // cleanup, and media-source validation all need the current state.
+    const { data: existing } = await adminClient
+      .from("lessons")
+      .select(
+        "module_id, title, content_type, content, storage_path, external_key, external_bh_url"
+      )
+      .eq("id", id)
+      .single();
+
+    if (!existing) {
+      return { success: false, error: "Lesson not found." };
+    }
+
     // Check for duplicate title within the same module (case-insensitive, exclude current)
     if (rest.title !== undefined) {
-      const { data: lesson } = await adminClient
+      const { data: dup } = await adminClient
         .from("lessons")
-        .select("module_id")
-        .eq("id", id)
-        .single();
+        .select("id")
+        .eq("module_id", existing.module_id)
+        .ilike("title", rest.title.trim())
+        .neq("id", id)
+        .limit(1)
+        .maybeSingle();
+      if (dup) {
+        return { success: false, error: "A lesson with this title already exists in this module." };
+      }
+    }
 
-      if (lesson) {
-        const { data: dup } = await adminClient
-          .from("lessons")
-          .select("id")
-          .eq("module_id", lesson.module_id)
-          .ilike("title", rest.title.trim())
-          .neq("id", id)
-          .limit(1)
-          .maybeSingle();
-        if (dup) {
-          return { success: false, error: "A lesson with this title already exists in this module." };
-        }
+    // M5 backstop: a media-type lesson must always keep at least one
+    // source — uploaded file, stream/URL content, or importer fields.
+    const MEDIA_TYPES = ["pdf", "video", "image", "file"];
+    const finalType =
+      (updates.content_type as string | undefined) ?? existing.content_type;
+    if (MEDIA_TYPES.includes(finalType)) {
+      const finalContent =
+        "content" in updates ? updates.content : existing.content;
+      const finalPath =
+        "storage_path" in updates ? updates.storage_path : existing.storage_path;
+      const hasExternalSource =
+        !!existing.external_key || !!existing.external_bh_url;
+      if (!finalContent && !finalPath && !hasExternalSource) {
+        return {
+          success: false,
+          error:
+            "Media lessons need a file or an imported source. Upload a file before saving.",
+        };
       }
     }
 
     const { error } = await adminClient.from("lessons").update(updates).eq("id", id);
     if (error) return { success: false, error: error.message };
+
+    // M6: when storage_path is explicitly cleared, delete the orphaned
+    // storage object so private files don't linger unlinked.
+    if (updates.storage_path === null && existing.storage_path) {
+      await adminClient.storage
+        .from("course-materials")
+        .remove([existing.storage_path]);
+    }
 
     const courseId = await getLessonCourseId(id);
     if (courseId) revalidatePath(`/admin/courses/${courseId}/builder`);
@@ -238,7 +273,12 @@ export async function reorderLessons(
         .eq("module_id", moduleId)
     );
 
-    await Promise.all(updates);
+    // Surface any failed update (H5) — never report success on partial failure
+    const results = await Promise.all(updates);
+    const firstError = results.find((r) => r.error);
+    if (firstError?.error) {
+      return { success: false, error: `Reorder failed: ${firstError.error.message}` };
+    }
 
     const courseId = await getModuleCourseId(moduleId);
     if (courseId) revalidatePath(`/admin/courses/${courseId}/builder`);
@@ -275,31 +315,33 @@ export async function uploadLessonFile(
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const storagePath = buildStoragePath(courseId, moduleId, lessonId, sanitizedName);
 
-    // Remove old file if any
+    // Remember the old object but do NOT delete it yet (H4): if this
+    // upload fails the existing file must stay intact.
     const { data: existingLesson } = await adminClient
       .from("lessons")
       .select("storage_path")
       .eq("id", lessonId)
       .single();
 
-    if (existingLesson?.storage_path && existingLesson.storage_path !== storagePath) {
-      await adminClient.storage
-        .from("course-materials")
-        .remove([existingLesson.storage_path]);
-    }
-
-    // Upload
+    // Upload first
     const { error: uploadError } = await adminClient.storage
       .from("course-materials")
       .upload(storagePath, file, { upsert: true });
 
     if (uploadError) return { success: false, error: uploadError.message };
 
-    // Update lesson
+    // Update lesson only after a successful upload
     await adminClient
       .from("lessons")
       .update({ storage_path: storagePath })
       .eq("id", lessonId);
+
+    // Delete old object only after the replacement is stored and linked
+    if (existingLesson?.storage_path && existingLesson.storage_path !== storagePath) {
+      await adminClient.storage
+        .from("course-materials")
+        .remove([existingLesson.storage_path]);
+    }
 
     // Create signed URL (1 hour for admin preview)
     const { data: signedUrlData, error: signedError } = await adminClient.storage

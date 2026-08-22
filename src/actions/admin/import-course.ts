@@ -144,6 +144,7 @@ async function doNewImport(
       adminClient,
       newCourseId,
       course.modules,
+      warnings,
     );
 
     const summary: ImportResult = {
@@ -301,6 +302,12 @@ async function doIncrementalImport(
             .single();
 
           if (newLessonError) {
+            // Duplicate source material already imported — skip + warn
+            // instead of aborting the whole run (H2).
+            if (isSourceFingerprintConflict(newLessonError)) {
+              warnings.push(fingerprintSkipWarning(lesson));
+              continue;
+            }
             throw new Error(`Failed to create lesson "${lesson.title}": ${newLessonError.message}`);
           }
           createdLessonIds.push(newLesson.id);
@@ -359,6 +366,8 @@ async function doIncrementalImport(
 // REPLACEMENT RE-IMPORT
 //
 // - Preserves the course row, ID, access, enrollments, and manual data
+// - Preserves student lesson progress by re-linking it to recreated
+//   lessons via source fingerprints (H1)
 // - Deletes obsolete imported lessons (source_fingerprint NOT NULL)
 // - Deletes obsolete imported modules (source_chapter_num NOT NULL)
 // - Recreates source modules/lessons from the new DB
@@ -456,8 +465,45 @@ async function doReplacementImport(
     (m) => !manualLessonModuleIds.has(m.id),
   );
 
+  // ── Progress preservation (H1) ─────────────────────────────
+  // Imported lessons are recreated with NEW UUIDs, and
+  // lesson_progress.lesson_id is ON DELETE CASCADE — without this
+  // snapshot every completion/resume record for imported lessons
+  // would be destroyed. Fingerprint gives us the old→new mapping.
+  const fingerprintByOldLessonId = new Map<string, string>();
+  for (const lesson of allLessons) {
+    if (lesson.source_fingerprint && importedModuleIds.includes(lesson.module_id)) {
+      fingerprintByOldLessonId.set(lesson.id, lesson.source_fingerprint);
+    }
+  }
+
+  interface ProgressSnapshotRow {
+    user_id: string;
+    lesson_id: string;
+    completed: boolean;
+    progress_percentage: number;
+    last_position: number;
+    updated_at: string;
+  }
+
+  let progressSnapshot: ProgressSnapshotRow[] = [];
+  if (importedLessonIds.length > 0) {
+    const { data: progressRows, error: progressFetchError } = await adminClient
+      .from("lesson_progress")
+      .select(
+        "user_id, lesson_id, completed, progress_percentage, last_position, updated_at",
+      )
+      .in("lesson_id", importedLessonIds);
+
+    if (progressFetchError) {
+      throw new Error(`Failed to fetch lesson progress: ${progressFetchError.message}`);
+    }
+    progressSnapshot = (progressRows ?? []) as ProgressSnapshotRow[];
+  }
+
   const createdModuleIds: string[] = [];
   const createdLessonIds: string[] = [];
+  const newLessonIdByFingerprint = new Map<string, string>();
   let modulesAdded = 0;
   let lessonsAdded = 0;
 
@@ -535,11 +581,74 @@ async function doReplacementImport(
           .single();
 
         if (newLessonError) {
+          // Duplicate source material already imported — skip + warn
+          // instead of aborting the whole run (H2).
+          if (isSourceFingerprintConflict(newLessonError)) {
+            warnings.push(fingerprintSkipWarning(lesson));
+            continue;
+          }
           throw new Error(`Failed to create lesson "${lesson.title}": ${newLessonError.message}`);
         }
         createdLessonIds.push(newLesson.id);
+        newLessonIdByFingerprint.set(lesson.source_fingerprint, newLesson.id);
         lessonsAdded++;
       }
+    }
+
+    // ── Restore progress onto the recreated lessons (H1) ───────
+    // Dedupe by (user_id, new lesson id): two old lessons can map to
+    // one new id via shared fingerprints; merge by OR-completion and
+    // max percentage/position. Chunked upserts avoid per-row RPCs.
+    const mergedByKey = new Map<
+      string,
+      {
+        user_id: string;
+        lesson_id: string;
+        completed: boolean;
+        progress_percentage: number;
+        last_position: number;
+      }
+    >();
+    for (const row of progressSnapshot) {
+      const fingerprint = fingerprintByOldLessonId.get(row.lesson_id);
+      if (!fingerprint) continue;
+      const newLessonId = newLessonIdByFingerprint.get(fingerprint);
+      if (!newLessonId) continue;
+
+      const key = `${row.user_id}:${newLessonId}`;
+      const existing = mergedByKey.get(key);
+      if (existing) {
+        existing.completed = existing.completed || row.completed;
+        existing.progress_percentage = Math.max(
+          existing.progress_percentage,
+          row.progress_percentage,
+        );
+        existing.last_position = Math.max(existing.last_position, row.last_position);
+      } else {
+        mergedByKey.set(key, {
+          user_id: row.user_id,
+          lesson_id: newLessonId,
+          completed: row.completed,
+          progress_percentage: row.progress_percentage,
+          last_position: row.last_position,
+        });
+      }
+    }
+
+    const restoreRows = [...mergedByKey.values()].map((r) => ({
+      ...r,
+      updated_at: new Date().toISOString(),
+    }));
+    let progressRestored = 0;
+    for (let i = 0; i < restoreRows.length; i += 500) {
+      const chunk = restoreRows.slice(i, i + 500);
+      const { error: restoreError } = await adminClient
+        .from("lesson_progress")
+        .upsert(chunk, { onConflict: "user_id,lesson_id" });
+      if (restoreError) {
+        throw new Error(`Failed to restore student progress: ${restoreError.message}`);
+      }
+      progressRestored += chunk.length;
     }
 
     const modulesRemoved = modulesToDelete.length;
@@ -558,6 +667,7 @@ async function doReplacementImport(
       lessonsRemoved,
       lessonsByType: computeLessonsByType(course.modules),
       totalLessons: countLessons(course.modules),
+      progressRestored,
       warnings,
     };
 
@@ -617,6 +727,16 @@ async function doReplacementImport(
         source_stamped: lesson.source_stamped,
       });
     }
+    // Restore progress rows that were cascade-deleted with the lessons.
+    if (progressSnapshot.length > 0) {
+      for (let i = 0; i < progressSnapshot.length; i += 500) {
+        await adminClient
+          .from("lesson_progress")
+          .upsert(progressSnapshot.slice(i, i + 500), {
+            onConflict: "user_id,lesson_id",
+          });
+      }
+    }
     throw e;
   }
 }
@@ -630,10 +750,46 @@ interface CreatedImportData {
   lessonIds: string[];
 }
 
+const FINGERPRINT_UNIQUE_CONSTRAINT = "lessons_source_fingerprint_unique";
+
+/**
+ * True when an insert failed only because another lesson already owns
+ * the same source_fingerprint (duplicate source material). These are
+ * skipped with a warning instead of aborting the whole import (H2).
+ */
+function isSourceFingerprintConflict(error: {
+  code?: string | null;
+  message?: string | null;
+}): boolean {
+  return (
+    error?.code === "23505" &&
+    !!error.message &&
+    error.message.includes(FINGERPRINT_UNIQUE_CONSTRAINT)
+  );
+}
+
+function fingerprintSkipWarning(
+  lesson: ParsedLesson,
+): ImportWarning {
+  const sourceType: ImportWarning["source_type"] =
+    lesson.content_type === "video"
+      ? "video"
+      : lesson.content_type === "pdf"
+        ? "pdf"
+        : "code_file";
+  return {
+    level: "warning",
+    message: `Skipped "${lesson.title.trim()}" — a lesson with this source fingerprint already exists.`,
+    source_type: sourceType,
+    source_key: lesson.source_fingerprint,
+  };
+}
+
 async function createModules(
   adminClient: SupabaseClient,
   courseId: string,
   modules: ParsedModule[],
+  warnings: ImportWarning[],
 ): Promise<CreatedImportData> {
   const moduleIds: string[] = [];
   const lessonIds: string[] = [];
@@ -657,19 +813,25 @@ async function createModules(
     moduleIds.push(newModule.id);
 
     for (const lesson of mod.lessons) {
-      const inserted = await insertLesson(adminClient, newModule.id, lesson);
-      lessonIds.push(inserted);
+      const inserted = await insertLesson(adminClient, newModule.id, lesson, warnings);
+      if (inserted) lessonIds.push(inserted);
     }
   }
 
   return { moduleIds, lessonIds };
 }
 
+/**
+ * Insert an imported lesson. Returns the new lesson id, or null when the
+ * row was skipped because its source fingerprint already exists
+ * (duplicate source material — reported as a warning, never fatal).
+ */
 async function insertLesson(
   adminClient: SupabaseClient,
   moduleId: string,
   lesson: ParsedLesson,
-): Promise<string> {
+  warnings: ImportWarning[],
+): Promise<string | null> {
   const { data: newLesson, error: lessonError } = await adminClient
     .from("lessons")
     .insert({
@@ -691,6 +853,10 @@ async function insertLesson(
     .single();
 
   if (lessonError) {
+    if (isSourceFingerprintConflict(lessonError)) {
+      warnings.push(fingerprintSkipWarning(lesson));
+      return null;
+    }
     throw new Error(`Failed to create lesson "${lesson.title}": ${lessonError.message}`);
   }
   return newLesson.id;

@@ -31,6 +31,7 @@ import {
     Bold,
     Check,
     ChevronLeft,
+    ExternalLink,
     File,
     FileText,
     Image as ImageIcon,
@@ -108,6 +109,7 @@ export default function LessonEditor({
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [description, setDescription] = useState(lesson?.description ?? "");
   const [contentType, setContentType] = useState<ContentType>(lesson?.content_type ?? "text");
+  const [initialContentType] = useState<ContentType>(lesson?.content_type ?? "text");
   const [textContent, setTextContent] = useState(lesson?.content ?? "");
   const [sourceMode, setSourceMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState(
@@ -119,6 +121,8 @@ export default function LessonEditor({
       ? { name: lesson.storage_path.split("/").pop() ?? "file", size: 0 }
       : null
   );
+  // True once the admin removed a previously-stored file (M6)
+  const [removedStoredFile, setRemovedStoredFile] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -149,6 +153,17 @@ export default function LessonEditor({
     [contentType]
   );
 
+  const hasStoredFile = !!lesson?.storage_path;
+  const hasExternalSource =
+    !!lesson?.external_key || !!lesson?.external_bh_url || !!lesson?.content;
+
+  // A media lesson is saveable when a new file is chosen, or the
+  // existing source (stored file / imported content) is still intact (M5).
+  function hasMediaSource(): boolean {
+    if (fileInputRef.current?.files?.[0]) return true;
+    return isEdit && !removedStoredFile && (hasStoredFile || hasExternalSource);
+  }
+
   // ── File helpers ───────────────────────────────────────────
   function handleFileSelect(file: File | null) {
     if (!file) return;
@@ -161,7 +176,19 @@ export default function LessonEditor({
     setFileEntry(null);
     setPreviewUrl(null);
     setUploadProgress(null);
+    if (lesson?.storage_path) setRemovedStoredFile(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // Clear any chosen-but-unsaved file when switching content type —
+  // a video selected for what becomes a PDF lesson must not persist (M6).
+  function handleTypeChange(next: ContentType) {
+    if (next === contentType) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setFileEntry(null);
+    setPreviewUrl(null);
+    setUploadProgress(null);
+    setContentType(next);
   }
 
   // ── Validation ─────────────────────────────────────────────
@@ -175,6 +202,9 @@ export default function LessonEditor({
       } catch {
         return "That link doesn't look like a valid URL.";
       }
+    }
+    if (isMediaType && !hasMediaSource()) {
+      return `Please choose a ${contentTypeLabel(contentType).toLowerCase()} file for this lesson.`;
     }
     return null;
   }
@@ -193,13 +223,32 @@ export default function LessonEditor({
       let lessonId = lesson?.id ?? "";
 
       if (isEdit) {
+        const typeChanged = contentType !== initialContentType;
+        const newFileChosen = !!fileInputRef.current?.files?.[0];
+
+        // Content handling:
+        // - text/link lessons always write their editor value;
+        // - media lessons that KEPT their type preserve existing
+        //   content (imported stream URLs live here — H6);
+        // - a type switch drops the old type's content (M6).
+        let contentValue: string | null | undefined;
+        if (contentType === "text") contentValue = textContent;
+        else if (contentType === "link") contentValue = linkUrl.trim();
+        else if (typeChanged) contentValue = null;
+
+        // Clear a stale stored file unless a replacement upload follows
+        // in this same save (M6). The server deletes the orphan object.
+        const clearStoredFile =
+          hasStoredFile && !newFileChosen && (removedStoredFile || typeChanged);
+
         const res = await updateLesson({
           id: lesson!.id,
           title,
           description,
           content_type: contentType,
-          content: contentType === "text" ? textContent : contentType === "link" ? linkUrl.trim() : null,
+          ...(contentValue !== undefined ? { content: contentValue } : {}),
           is_preview: isPreview,
+          ...(clearStoredFile ? { storage_path: null as string | null } : {}),
         });
         if (!res.success) {
           toast.error(res.error);
@@ -446,7 +495,7 @@ export default function LessonEditor({
               <button
                 key={t.value}
                 type="button"
-                onClick={() => setContentType(t.value)}
+                onClick={() => handleTypeChange(t.value)}
                 disabled={isPending}
                 className={
                   "relative flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors disabled:opacity-50 " +
@@ -603,6 +652,70 @@ export default function LessonEditor({
           </div>
         )}
 
+        {isEdit &&
+          isMediaType &&
+          contentType === lesson?.content_type &&
+          (lesson?.content || lesson?.external_key || lesson?.external_bh_url) && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-foreground">
+                  Imported source
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  This lesson&apos;s content comes from a course import. It is
+                  preserved when you save. Change the content type or re-import
+                  to replace it.
+                </p>
+              </div>
+              <dl className="grid gap-2 text-sm">
+                {lesson?.content && (
+                  <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:items-center">
+                    <dt className="text-xs text-muted-foreground">
+                      {lesson.content_type === "video" ? "Stream URL" : "Source URL"}
+                    </dt>
+                    <dd className="min-w-0">
+                      <Input
+                        readOnly
+                        value={lesson.content}
+                        className="h-8 font-mono text-xs"
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                    </dd>
+                  </div>
+                )}
+                {lesson?.external_key && (
+                  <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:items-center">
+                    <dt className="text-xs text-muted-foreground">Storage key</dt>
+                    <dd className="min-w-0">
+                      <Input
+                        readOnly
+                        value={lesson.external_key}
+                        className="h-8 font-mono text-xs"
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                    </dd>
+                  </div>
+                )}
+                {lesson?.external_bh_url && (
+                  <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:items-center">
+                    <dt className="text-xs text-muted-foreground">Backup link</dt>
+                    <dd>
+                      <a
+                        href={lesson.external_bh_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                      >
+                        Open backup link
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
         {isMediaType && (
           <div className="rounded-lg border border-dashed border-border bg-card p-4 sm:p-6">
             {!fileEntry ? (
@@ -715,7 +828,7 @@ export default function LessonEditor({
       {/* Sticky action bar */}
       <div className="sticky bottom-4 mt-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {isMediaType && !fileEntry && !lesson?.storage_path && (
+          {isMediaType && !hasMediaSource() && (
             <Badge variant="outline" className="text-[10px]">
               File required
             </Badge>

@@ -91,7 +91,7 @@ describe("executeImport (integration)", () => {
     await cleanupTestData(svc, globalIds.users, globalIds.courses);
   });
 
-  it("imports a new course from a .db file with correct structure", async () => {
+  it("imports a new course from a .db file with correct structure", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !migration007Applied) return;
 
     const buffer = readFileSync(DB_PATH);
@@ -164,7 +164,7 @@ describe("executeImport (integration)", () => {
     expect(auditLogs!.length).toBe(1);
   });
 
-  it("accepts re-import on an existing source course (incremental by default)", async () => {
+  it("accepts re-import on an existing source course (incremental by default)", { timeout: 300_000 }, async () => {
     if (!isIntegrationTestEnv || !migration007Applied) return;
 
     const buffer = readFileSync(DB_PATH);

@@ -65,24 +65,84 @@ describe("parseDb (real DBTest/apna_videos.db)", () => {
     }
   });
 
-  it("contains the known sample rows (2 videos, 15 pdfs, 3 code files)", async () => {
+  it("deduplicates source rows and yields globally unique fingerprints (H2)", async () => {
     const buffer = readFileSync(DB_PATH);
     const result = await parseDb(buffer);
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    const videos = result.course.modules.flatMap((m) =>
-      m.lessons.filter((l) => l.content_type === "video"),
-    );
-    const pdfs = result.course.modules.flatMap((m) =>
-      m.lessons.filter((l) => l.content_type === "pdf"),
-    );
-    const files = result.course.modules.flatMap((m) =>
-      m.lessons.filter((l) => l.content_type === "file"),
-    );
+    const lessons = result.course.modules.flatMap((m) => m.lessons);
 
-    expect(videos).toHaveLength(2);
-    expect(pdfs).toHaveLength(15);
-    expect(files).toHaveLength(3);
+    // No fingerprint may repeat — duplicates would abort the import on
+    // lessons_source_fingerprint_unique.
+    const fingerprints = new Set(lessons.map((l) => l.source_fingerprint));
+    expect(fingerprints.size).toBe(lessons.length);
+
+    // The real apna_videos.db contains byte-identical duplicate video
+    // rows; the parser must report every dropped copy.
+    const dropWarnings = result.warnings.filter(
+      (w) => w.level === "warning" && w.message.includes("exact duplicate"),
+    );
+    expect(dropWarnings.length).toBeGreaterThan(0);
+    const droppedRows = dropWarnings.reduce(
+      (n, w) => n + Number(w.message.match(/Removed (\d+)/)![1]),
+      0,
+    );
+    expect(droppedRows).toBe(46);
+  });
+
+  it("collapses known triplicated row to a single lesson", async () => {
+    const buffer = readFileSync(DB_PATH);
+    const result = await parseDb(buffer);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    // "Orientation Session (Recording)" appears three times, byte
+    // identical, in the source videos table.
+    const orientation = result.course.modules.flatMap((m) => m.lessons).filter(
+      (l) => l.title === "Orientation Session (Recording)",
+    );
+    expect(orientation).toHaveLength(1);
+  });
+
+  it("imports same-key different-material rows as distinct lessons", async () => {
+    const buffer = readFileSync(DB_PATH);
+    const result = await parseDb(buffer);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    // "Relational Operators" / "Assignment Operators" / "Logical
+    // Operators" share their logical key but carry different stream
+    // URLs — both materials must survive with distinct fingerprints.
+    const disambiguationInfos = result.warnings.filter(
+      (w) => w.level === "info" && w.message.includes("disambiguated"),
+    );
+    expect(disambiguationInfos.length).toBe(3);
+
+    const pythonFundamentals = result.course.modules.find(
+      (m) => m.title === "Python Fundamentals (Part 1)",
+    );
+    expect(pythonFundamentals).toBeDefined();
+
+    // Each of the three titles carries two distinct materials
+    // (e.g. "Relational Operators" exists twice with one URL and once
+    // with another) → 6 lessons after dedup, all uniquely fingerprinted.
+    const operators = pythonFundamentals!.lessons.filter((l) =>
+      ["Relational Operators", "Assignment Operators", "Logical Operators"].includes(l.title),
+    );
+    expect(operators).toHaveLength(6);
+
+    const fps = new Set(operators.map((l) => l.source_fingerprint));
+    expect(fps.size).toBe(6);
+
+    for (const title of ["Relational Operators", "Assignment Operators", "Logical Operators"]) {
+      const pair = operators.filter((l) => l.title === title);
+      expect(pair).toHaveLength(2);
+      expect(pair[0].content).not.toBe(pair[1].content);
+      expect(pair[0].source_fingerprint).not.toBe(pair[1].source_fingerprint);
+      for (const lesson of pair) {
+        expect(lesson.content).toBeTruthy();
+      }
+    }
   });
 });
